@@ -14,23 +14,26 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // usa tu CorsFilter; necesario para preflight
-                .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
-
+                .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
-                        // permitir TODOS los preflight OPTIONS
+                        // Preflight y estáticos (si los hubiera)
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // endpoints públicos
-                        .requestMatchers("/api/auth/register", "/actuator/health").permitAll()
+                        // Actuator básicos
+                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
 
-                        // el resto requiere JWT
+                        // Auth públicas
+                        .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
+
+                        // ✅ Endpoint PÚBLICO de métricas
+                        .requestMatchers(HttpMethod.GET, "/api/metrics").permitAll()
+
+                        // Todo lo demás requiere JWT
                         .anyRequest().authenticated()
                 )
-
-                // antes: .oauth2ResourceServer(o -> o.jwt());  <-- deprecado
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
+                // Resource server con JWT (para el resto)
+                .oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults()));
 
         return http.build();
     }
