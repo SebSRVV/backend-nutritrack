@@ -1,3 +1,4 @@
+// src/main/java/com/sebsrvv/app/config/SecurityConfig.java
 package com.sebsrvv.app.config;
 
 import org.springframework.context.annotation.Bean;
@@ -9,21 +10,27 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 public class SecurityConfig {
+
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())        // desactivar CSRF (API stateless)
-                .cors(Customizer.withDefaults())     // 👈 habilitar CORS usando tu CorsConfig
+                // usa tu CorsFilter; necesario para preflight
+                .cors(Customizer.withDefaults())
+                .csrf(csrf -> csrf.disable())
+
                 .authorizeHttpRequests(auth -> auth
-                        // Preflight debe permitirse, si no el navegador nunca llega al POST real
+                        // permitir TODOS los preflight OPTIONS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Rutas públicas
+
+                        // endpoints públicos
                         .requestMatchers("/api/auth/register", "/actuator/health").permitAll()
-                        // Todo lo demás requiere JWT válido
+
+                        // el resto requiere JWT
                         .anyRequest().authenticated()
                 )
-                // Configura resource server con JWT (ya tienes jwk-set-uri en application.properties)
-                .oauth2ResourceServer(o -> o.jwt());
+
+                // antes: .oauth2ResourceServer(o -> o.jwt());  <-- deprecado
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
 
         return http.build();
     }
