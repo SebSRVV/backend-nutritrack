@@ -31,20 +31,36 @@ public class AuthService {
             new ParameterizedTypeReference<>() {};
     private static final ObjectMapper JSON = new ObjectMapper();
 
-    private final WebClient http;
+    /** Cliente con serviceKey (admin) */
+    private final WebClient adminHttp;
+    /** Cliente con anonKey (público) */
+    private final WebClient publicHttp;
 
     public AuthService(
             @Value("${supabase.url}") String baseUrl,
-            @Value("${supabase.serviceKey}") String serviceKey
+            @Value("${supabase.serviceKey}") String serviceKey,
+            @Value("${supabase.anonKey}") String anonKey
     ) {
-        this.http = WebClient.builder()
+        this.adminHttp = WebClient.builder()
                 .baseUrl(baseUrl)
                 .defaultHeader("apikey", serviceKey)
                 .defaultHeader("Authorization", "Bearer " + serviceKey)
                 .filter((req, next) -> {
-                    log.info("[API/SUPABASE] --> {} {}", req.method(), req.url());
+                    log.info("[SUPABASE/ADMIN] --> {} {}", req.method(), req.url());
                     return next.exchange(req)
-                            .doOnNext(res -> log.info("[API/SUPABASE] <-- {} {}",
+                            .doOnNext(res -> log.info("[SUPABASE/ADMIN] <-- {} {}",
+                                    res.statusCode().value(),
+                                    res.headers().asHttpHeaders().getContentType()));
+                })
+                .build();
+
+        this.publicHttp = WebClient.builder()
+                .baseUrl(baseUrl)
+                .defaultHeader("apikey", anonKey)
+                .filter((req, next) -> {
+                    log.info("[SUPABASE/PUBLIC] --> {} {}", req.method(), req.url());
+                    return next.exchange(req)
+                            .doOnNext(res -> log.info("[SUPABASE/PUBLIC] <-- {} {}",
                                     res.statusCode().value(),
                                     res.headers().asHttpHeaders().getContentType()));
                 })
@@ -79,7 +95,7 @@ public class AuthService {
 
         log.info("[API/register] payload: {}", redact(body));
 
-        return http.post()
+        return adminHttp.post()
                 .uri("/auth/v1/admin/users")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(body)
@@ -89,44 +105,50 @@ public class AuthService {
     }
 
     /* ---------------------------------------------------------
-     * LOGIN (password grant)
+     * LOGIN (password grant) - usa anonKey
      * --------------------------------------------------------- */
     public Mono<Map<String, Object>> login(String email, String password) {
         Map<String, Object> body = Map.of("email", email, "password", password);
 
         log.info("[API/login] payload: {}", redact(body));
 
-        return http.post()
+        return publicHttp.post()
                 .uri("/auth/v1/token?grant_type=password")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(body)
-                .exchangeToMono(this::handleLoginResponse)
+                .exchangeToMono(this::handleTokenResponse)
                 .doOnSuccess(out -> log.info("[API/login] OK <- keys: {}", out.keySet()))
                 .doOnError(err -> log.warn("[API/login] ERROR <- {}", err.getMessage()));
     }
 
-    /* ---------- helpers ---------- */
+    /* ---------------------------------------------------------
+     * REFRESH (refresh_token grant) - usa anonKey
+     * --------------------------------------------------------- */
+    public Mono<Map<String, Object>> refresh(String refreshToken) {
+        Map<String, Object> body = Map.of("refresh_token", refreshToken);
+        log.info("[API/refresh] payload: {}", Map.of("refresh_token", "***"));
 
-    private static Map<String, Object> redact(Map<String, Object> input) {
-        Map<String, Object> copy = new HashMap<>(input);
-        if (copy.containsKey("password")) copy.put("password", "***");
-        return copy;
+        return publicHttp.post()
+                .uri("/auth/v1/token?grant_type=refresh_token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(body)
+                .exchangeToMono(this::handleTokenResponse)
+                .doOnSuccess(out -> log.info("[API/refresh] OK <- keys: {}", out.keySet()))
+                .doOnError(err -> log.warn("[API/refresh] ERROR <- {}", err.getMessage()));
     }
 
-    private static Double computeBmi(Integer heightCm, Integer weightKg) {
-        if (heightCm == null || weightKg == null || heightCm == 0) return null;
-        double m = heightCm / 100.0;
-        double raw = weightKg / (m * m);
-        return Math.round(raw * 10.0) / 10.0;
+    /* ---------------------------------------------------------
+     * USER (Bearer access token) - usa anonKey
+     * --------------------------------------------------------- */
+    public Mono<Map<String, Object>> getUser(String accessToken) {
+        return publicHttp.get()
+                .uri("/auth/v1/user")
+                .header("Authorization", "Bearer " + accessToken)
+                .retrieve()
+                .bodyToMono(MAP_OF_OBJECT);
     }
 
-    private static Integer safeAgeFromDob(String dob) {
-        try {
-            return Period.between(LocalDate.parse(dob), LocalDate.now()).getYears();
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
+    /* ---------- handlers ---------- */
 
     @SuppressWarnings("unchecked")
     private Mono<Map<String, Object>> handleRegisterResponse(ClientResponse res, String email) {
@@ -154,7 +176,7 @@ public class AuthService {
         return res.bodyToMono(String.class)
                 .defaultIfEmpty("")
                 .flatMap(bodyStr -> {
-                    log.warn("[API/SUPABASE] <-- {} body: {}", sc.value(), bodyStr);
+                    log.warn("[SUPABASE/ADMIN] <-- {} body: {}", sc.value(), bodyStr);
 
                     Map<String, Object> err = tryParseJsonToMap(bodyStr);
 
@@ -194,10 +216,9 @@ public class AuthService {
                 });
     }
 
-    private Mono<Map<String, Object>> handleLoginResponse(ClientResponse res) {
+    private Mono<Map<String, Object>> handleTokenResponse(ClientResponse res) {
         if (res.statusCode().is2xxSuccessful()) {
             return res.bodyToMono(MAP_OF_OBJECT).flatMap(tokens -> {
-                // Validamos que venga access_token
                 if (tokens.get("access_token") == null) {
                     return Mono.error(new IllegalStateException(
                             "Respuesta inesperada de Supabase (no viene access_token)."));
@@ -210,7 +231,7 @@ public class AuthService {
         return res.bodyToMono(String.class)
                 .defaultIfEmpty("")
                 .flatMap(bodyStr -> {
-                    log.warn("[API/SUPABASE] <-- {} body: {}", sc.value(), bodyStr);
+                    log.warn("[SUPABASE/PUBLIC] <-- {} body: {}", sc.value(), bodyStr);
 
                     Map<String, Object> err = tryParseJsonToMap(bodyStr);
 
@@ -231,8 +252,9 @@ public class AuthService {
                             : rawMsg;
                     String low = msg.toLowerCase();
 
-                    // 400 invalid_grant => credenciales incorrectas
+                    // 400 invalid_grant => credenciales inválidas o refresh token inválido/expirado
                     if (sc.value() == 400 && (code.equalsIgnoreCase("invalid_grant")
+                            || low.contains("invalid refresh token")
                             || low.contains("invalid login credentials")
                             || low.contains("invalid email or password"))) {
                         return Mono.error(new InvalidCredentialsException("Credenciales inválidas."));
@@ -245,7 +267,29 @@ public class AuthService {
                 });
     }
 
-    /* --------- utils de parseo --------- */
+    /* ---------- helpers ---------- */
+
+    private static Map<String, Object> redact(Map<String, Object> input) {
+        Map<String, Object> copy = new HashMap<>(input);
+        if (copy.containsKey("password")) copy.put("password", "***");
+        if (copy.containsKey("refresh_token")) copy.put("refresh_token", "***");
+        return copy;
+    }
+
+    private static Double computeBmi(Integer heightCm, Integer weightKg) {
+        if (heightCm == null || weightKg == null || heightCm == 0) return null;
+        double m = heightCm / 100.0;
+        double raw = weightKg / (m * m);
+        return Math.round(raw * 10.0) / 10.0;
+    }
+
+    private static Integer safeAgeFromDob(String dob) {
+        try {
+            return Period.between(LocalDate.parse(dob), LocalDate.now()).getYears();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
 
     private static Map<String, Object> tryParseJsonToMap(String json) {
         if (json == null || json.isBlank()) return Map.of();
