@@ -1,4 +1,3 @@
-// src/main/java/com/sebsrvv/app/config/SecurityConfig.java
 package com.sebsrvv.app.config;
 
 import org.springframework.context.annotation.Bean;
@@ -31,10 +30,9 @@ public class SecurityConfig {
                         // Público extra (si aplica)
                         .requestMatchers(HttpMethod.GET, "/api/metrics").permitAll()
 
-                        // Todo lo demás requiere JWT
+                        // Todo lo demás requiere JWT (incluye DELETE /api/auth/delete)
                         .anyRequest().authenticated()
                 )
-                // Si tienes otras rutas protegidas con JWT, déjalo activo
                 .oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults()));
 
         return http.build();
