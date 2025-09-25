@@ -6,6 +6,9 @@ import com.sebsrvv.app.modules.auth.domain.EmailAlreadyExistsException;
 import com.sebsrvv.app.modules.auth.domain.InvalidCredentialsException;
 import com.sebsrvv.app.modules.auth.domain.InvalidEmailException;
 import com.sebsrvv.app.modules.auth.domain.InvalidPasswordException;
+import com.sebsrvv.app.modules.auth.domain.Sex;
+import com.sebsrvv.app.modules.auth.web.dto.UpdateProfileRequest;
+import com.sebsrvv.app.modules.auth.web.dto.UpdateProfileResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,6 +24,7 @@ import reactor.core.publisher.Mono;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -30,6 +34,8 @@ public class AuthService {
 
     private static final ParameterizedTypeReference<Map<String, Object>> MAP_OF_OBJECT =
             new ParameterizedTypeReference<>() {};
+    private static final ParameterizedTypeReference<List<Map<String, Object>>> LIST_OF_MAP =
+            new ParameterizedTypeReference<>() {};
     private static final ObjectMapper JSON = new ObjectMapper();
 
     /** Cliente con serviceKey (admin) */
@@ -38,13 +44,17 @@ public class AuthService {
     private final WebClient publicHttp;
     /** Necesario para el header Authorization en /token */
     private final String anonKey;
+    /** Tabla de perfiles (PostgREST) */
+    private final String profilesTable;
 
     public AuthService(
             @Value("${supabase.url}") String baseUrl,
             @Value("${supabase.serviceKey}") String serviceKey,
-            @Value("${supabase.anonKey}") String anonKey
+            @Value("${supabase.anonKey}") String anonKey,
+            @Value("${supabase.profilesTable:profiles}") String profilesTable
     ) {
         this.anonKey = anonKey;
+        this.profilesTable = profilesTable;
 
         this.adminHttp = WebClient.builder()
                 .baseUrl(baseUrl)
@@ -95,7 +105,7 @@ public class AuthService {
                 "email", email,
                 "password", password,
                 "user_metadata", userMeta,
-                "email_confirm", true
+                "email_confirm", true   // confirmado para NO enviar mail de confirmación
         );
 
         log.info("[API/register] payload: {}", redact(body));
@@ -171,6 +181,94 @@ public class AuthService {
                             .uri("/auth/v1/admin/users/{id}", userId)
                             .exchangeToMono(this::handleDeleteResponse)
                             .then();
+                });
+    }
+
+    /* ---------------------------------------------------------
+     * UPDATE PROFILE (self-service) - tabla profiles vía PostgREST + RLS
+     * --------------------------------------------------------- */
+    public Mono<UpdateProfileResponse> updateProfile(String accessToken, UpdateProfileRequest r) {
+        // 1) Resolver id del usuario desde el access token
+        return getUser(accessToken)
+                .switchIfEmpty(Mono.error(new RuntimeException("USER_NOT_FOUND")))
+                .flatMap(user -> {
+                    String userId = String.valueOf(user.get("id"));
+                    if (userId == null || userId.isBlank()) {
+                        return Mono.error(new IllegalStateException("No se pudo resolver el id del usuario."));
+                    }
+
+                    // 2) Construir updates (mapeo a valores de DB)
+                    Map<String, Object> updates = new HashMap<>();
+
+                    Sex sex = r.sex();
+                    if (sex != null) updates.put("sex", sex.name().toLowerCase()); // MALE -> "male"
+
+                    if (r.height_cm() != null) updates.put("height_cm", r.height_cm());
+                    if (r.weight_kg() != null) updates.put("weight_kg", r.weight_kg());
+
+                    if (r.activity_level() != null) updates.put("activity_level", r.activity_level().dbValue());
+                    if (r.diet_type() != null)      updates.put("diet_type",      r.diet_type().dbValue());
+
+                    // 2.1) BMI si hay altura/peso
+                    Double bmi = computeBmi(r.height_cm(), r.weight_kg());
+                    if (bmi != null) updates.put("bmi", bmi);
+
+                    // 3) PATCH + fallback a UPSERT si no existe fila
+                    return patchOrUpsertProfile(accessToken, userId, updates)
+                            .map(row -> new UpdateProfileResponse(
+                                    String.valueOf(row.getOrDefault("id", userId)),
+                                    String.valueOf(row.getOrDefault("sex", updates.get("sex"))),
+                                    (Integer) row.getOrDefault("height_cm", updates.get("height_cm")),
+                                    (Integer) row.getOrDefault("weight_kg", updates.get("weight_kg")),
+                                    String.valueOf(row.getOrDefault("activity_level", updates.get("activity_level"))),
+                                    String.valueOf(row.getOrDefault("diet_type", updates.get("diet_type"))),
+                                    (row.get("bmi") instanceof Number n)
+                                            ? n.doubleValue()
+                                            : (updates.get("bmi") instanceof Number m ? ((Number) m).doubleValue() : null),
+                                    String.valueOf(row.getOrDefault("updated_at", null))
+                            ));
+                });
+    }
+
+    private Mono<Map<String, Object>> patchOrUpsertProfile(String accessToken, String userId, Map<String, Object> updates) {
+        final String patchUri = "/rest/v1/" + profilesTable + "?id=eq." + userId;
+
+        return publicHttp.patch()
+                .uri(patchUri)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken) // RLS: token del usuario
+                .header("Prefer", "return=representation")
+                .bodyValue(updates)
+                .exchangeToMono(res -> {
+                    if (res.statusCode().is2xxSuccessful()) {
+                        return res.bodyToMono(LIST_OF_MAP)
+                                .defaultIfEmpty(List.of())
+                                .flatMap(list -> {
+                                    if (!list.isEmpty()) return Mono.just(list.get(0));
+
+                                    // Si PATCH no retorna fila (no existe), hacemos UPSERT con POST
+                                    Map<String, Object> upsert = new HashMap<>(updates);
+                                    upsert.put("id", userId);
+
+                                    final String postUri = "/rest/v1/" + profilesTable;
+                                    return publicHttp.post()
+                                            .uri(postUri)
+                                            .contentType(MediaType.APPLICATION_JSON)
+                                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                                            .header("Prefer", "resolution=merge-duplicates,return=representation")
+                                            .bodyValue(upsert)
+                                            .retrieve()
+                                            .bodyToMono(LIST_OF_MAP)
+                                            .map(rows -> rows.isEmpty() ? Map.<String,Object>of() : rows.get(0));
+                                });
+                    }
+
+                    return res.bodyToMono(String.class)
+                            .defaultIfEmpty("")
+                            .flatMap(body -> {
+                                log.warn("[POSTGREST/PATCH {}] <-- {} body: {}", profilesTable, res.statusCode().value(), body);
+                                return Mono.error(new RuntimeException("Error actualizando perfil: " + res.statusCode()));
+                            });
                 });
     }
 
