@@ -1,6 +1,8 @@
 package com.sebsrvv.app.modules.auth.web;
 
 import com.sebsrvv.app.modules.auth.application.AuthService;
+import com.sebsrvv.app.modules.auth.web.dto.LoginRequest;
+import com.sebsrvv.app.modules.auth.web.dto.LoginResponse;
 import com.sebsrvv.app.modules.auth.web.dto.RegisterRequest;
 import com.sebsrvv.app.modules.auth.web.dto.RegisterResponse;
 import jakarta.validation.Valid;
@@ -36,6 +38,21 @@ public class AuthController {
                     return ResponseEntity
                             .created(URI.create("/api/users/" + id))  // 201 Created
                             .body(resp);
+                });
+    }
+
+    @PostMapping("/login")
+    public Mono<ResponseEntity<LoginResponse>> login(@Valid @RequestBody LoginRequest r) {
+        return authService.login(r.email(), r.password())
+                .map(tokens -> {
+                    LoginResponse resp = new LoginResponse(
+                            String.valueOf(tokens.get("access_token")),
+                            String.valueOf(tokens.get("refresh_token")),
+                            String.valueOf(tokens.getOrDefault("token_type", "bearer")),
+                            (Integer) tokens.getOrDefault("expires_in", null),
+                            (Map<String, Object>) tokens.getOrDefault("user", null)
+                    );
+                    return ResponseEntity.ok(resp);
                 });
     }
 }
