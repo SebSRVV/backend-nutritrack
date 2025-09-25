@@ -3,6 +3,7 @@ package com.sebsrvv.app.modules.auth.application;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sebsrvv.app.modules.auth.domain.EmailAlreadyExistsException;
+import com.sebsrvv.app.modules.auth.domain.InvalidCredentialsException;
 import com.sebsrvv.app.modules.auth.domain.InvalidEmailException;
 import com.sebsrvv.app.modules.auth.domain.InvalidPasswordException;
 import org.slf4j.Logger;
@@ -50,6 +51,9 @@ public class AuthService {
                 .build();
     }
 
+    /* ---------------------------------------------------------
+     * REGISTER (admin create user)
+     * --------------------------------------------------------- */
     public Mono<Map<String, Object>> register(Map<String, Object> payload) {
         final String email    = (String) payload.get("email");
         final String password = (String) payload.get("password");
@@ -79,9 +83,26 @@ public class AuthService {
                 .uri("/auth/v1/admin/users")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(body)
-                .exchangeToMono(res -> handleResponse(res, email))
+                .exchangeToMono(res -> handleRegisterResponse(res, email))
                 .doOnSuccess(out -> log.info("[API/register] OK <- {}", out))
                 .doOnError(err -> log.warn("[API/register] ERROR <- {}", err.getMessage()));
+    }
+
+    /* ---------------------------------------------------------
+     * LOGIN (password grant)
+     * --------------------------------------------------------- */
+    public Mono<Map<String, Object>> login(String email, String password) {
+        Map<String, Object> body = Map.of("email", email, "password", password);
+
+        log.info("[API/login] payload: {}", redact(body));
+
+        return http.post()
+                .uri("/auth/v1/token?grant_type=password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(body)
+                .exchangeToMono(this::handleLoginResponse)
+                .doOnSuccess(out -> log.info("[API/login] OK <- keys: {}", out.keySet()))
+                .doOnError(err -> log.warn("[API/login] ERROR <- {}", err.getMessage()));
     }
 
     /* ---------- helpers ---------- */
@@ -108,7 +129,7 @@ public class AuthService {
     }
 
     @SuppressWarnings("unchecked")
-    private Mono<Map<String, Object>> handleResponse(ClientResponse res, String email) {
+    private Mono<Map<String, Object>> handleRegisterResponse(ClientResponse res, String email) {
         if (res.statusCode().is2xxSuccessful()) {
             return res.bodyToMono(MAP_OF_OBJECT).flatMap(resp -> {
                 Object maybeUser = resp.get("user");
@@ -128,7 +149,6 @@ public class AuthService {
             });
         }
 
-        // No-2xx: logueamos y analizamos el cuerpo del error
         HttpStatusCode sc = res.statusCode();
 
         return res.bodyToMono(String.class)
@@ -138,13 +158,12 @@ public class AuthService {
 
                     Map<String, Object> err = tryParseJsonToMap(bodyStr);
 
-                    // Extrae campos comunes de error
                     String rawMsg = firstNonBlank(
                             str(err.get("message")),
                             str(err.get("error_description")),
                             str(err.get("msg")),
                             str(err.get("hint")),
-                            bodyStr // fallback texto plano
+                            bodyStr
                     );
                     String code = firstNonBlank(
                             str(err.get("error_code")),
@@ -158,7 +177,6 @@ public class AuthService {
 
                     String low = msg.toLowerCase();
 
-                    // Mapeos conocidos
                     if (sc.value() == 422 && (low.contains("already registered")
                             || low.contains("user already registered")
                             || low.contains("duplicate key")
@@ -167,6 +185,57 @@ public class AuthService {
                     }
                     if (sc.value() == 422 && (low.contains("password") || code.equalsIgnoreCase("weak_password"))) {
                         return Mono.error(new InvalidPasswordException(msg));
+                    }
+                    if (sc.value() == 422 && (low.contains("invalid email") || code.equalsIgnoreCase("invalid_email"))) {
+                        return Mono.error(new InvalidEmailException(msg));
+                    }
+
+                    return Mono.error(new RuntimeException("Supabase (" + sc.value() + "): " + msg));
+                });
+    }
+
+    private Mono<Map<String, Object>> handleLoginResponse(ClientResponse res) {
+        if (res.statusCode().is2xxSuccessful()) {
+            return res.bodyToMono(MAP_OF_OBJECT).flatMap(tokens -> {
+                // Validamos que venga access_token
+                if (tokens.get("access_token") == null) {
+                    return Mono.error(new IllegalStateException(
+                            "Respuesta inesperada de Supabase (no viene access_token)."));
+                }
+                return Mono.just(tokens);
+            });
+        }
+
+        HttpStatusCode sc = res.statusCode();
+        return res.bodyToMono(String.class)
+                .defaultIfEmpty("")
+                .flatMap(bodyStr -> {
+                    log.warn("[API/SUPABASE] <-- {} body: {}", sc.value(), bodyStr);
+
+                    Map<String, Object> err = tryParseJsonToMap(bodyStr);
+
+                    String rawMsg = firstNonBlank(
+                            str(err.get("message")),
+                            str(err.get("error_description")),
+                            str(err.get("msg")),
+                            str(err.get("hint")),
+                            bodyStr
+                    );
+                    String code = firstNonBlank(
+                            str(err.get("error_code")),
+                            str(err.get("code")),
+                            ""
+                    );
+                    String msg = rawMsg.isBlank()
+                            ? ("Supabase " + sc.value() + " (" + sc + ")")
+                            : rawMsg;
+                    String low = msg.toLowerCase();
+
+                    // 400 invalid_grant => credenciales incorrectas
+                    if (sc.value() == 400 && (code.equalsIgnoreCase("invalid_grant")
+                            || low.contains("invalid login credentials")
+                            || low.contains("invalid email or password"))) {
+                        return Mono.error(new InvalidCredentialsException("Credenciales inválidas."));
                     }
                     if (sc.value() == 422 && (low.contains("invalid email") || code.equalsIgnoreCase("invalid_email"))) {
                         return Mono.error(new InvalidEmailException(msg));
