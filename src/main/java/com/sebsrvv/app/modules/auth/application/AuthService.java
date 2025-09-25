@@ -155,6 +155,25 @@ public class AuthService {
                 .bodyToMono(MAP_OF_OBJECT);
     }
 
+    /* ---------------------------------------------------------
+     * DELETE (self-service) - elimina al usuario autenticado
+     * --------------------------------------------------------- */
+    public Mono<Void> deleteAccount(String accessToken) {
+        return getUser(accessToken)
+                .switchIfEmpty(Mono.error(new RuntimeException("USER_NOT_FOUND")))
+                .flatMap(user -> {
+                    String userId = String.valueOf(user.get("id"));
+                    if (userId == null || userId.isBlank()) {
+                        return Mono.error(new IllegalStateException("No se pudo resolver el id del usuario."));
+                    }
+
+                    return adminHttp.delete()
+                            .uri("/auth/v1/admin/users/{id}", userId)
+                            .exchangeToMono(this::handleDeleteResponse)
+                            .then();
+                });
+    }
+
     /* ---------- handlers ---------- */
 
     @SuppressWarnings("unchecked")
@@ -271,6 +290,36 @@ public class AuthService {
                     }
 
                     return Mono.error(new RuntimeException("Supabase (" + sc.value() + "): " + msg));
+                });
+    }
+
+    /** Manejo de respuesta para DELETE admin/users/{id} */
+    private Mono<Void> handleDeleteResponse(ClientResponse res) {
+        if (res.statusCode().is2xxSuccessful() || res.statusCode().value() == 204) {
+            // Supabase suele responder 200 o 204 en deletions
+            return res.releaseBody().then();
+        }
+
+        HttpStatusCode sc = res.statusCode();
+        return res.bodyToMono(String.class)
+                .defaultIfEmpty("")
+                .flatMap(bodyStr -> {
+                    log.warn("[SUPABASE/ADMIN][DELETE] <-- {} body: {}", sc.value(), bodyStr);
+
+                    Map<String, Object> err = tryParseJsonToMap(bodyStr);
+                    String rawMsg = firstNonBlank(
+                            str(err.get("message")),
+                            str(err.get("error_description")),
+                            str(err.get("msg")),
+                            str(err.get("hint")),
+                            bodyStr
+                    );
+
+                    String msg = rawMsg.isBlank()
+                            ? ("Supabase " + sc.value() + " (" + sc + ")")
+                            : rawMsg;
+
+                    return Mono.error(new RuntimeException("Supabase DELETE (" + sc.value() + "): " + msg));
                 });
     }
 

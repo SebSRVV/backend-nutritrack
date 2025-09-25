@@ -49,12 +49,14 @@ public class AuthController {
     public Mono<ResponseEntity<LoginResponse>> login(@Valid @RequestBody LoginRequest r) {
         return authService.login(r.email(), r.password())
                 .map(tokens -> {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> userMap = (Map<String, Object>) tokens.getOrDefault("user", null);
                     LoginResponse resp = new LoginResponse(
                             String.valueOf(tokens.get("access_token")),
                             String.valueOf(tokens.get("refresh_token")),
                             String.valueOf(tokens.getOrDefault("token_type", "bearer")),
                             (Integer) tokens.getOrDefault("expires_in", null),
-                            (Map<String, Object>) tokens.getOrDefault("user", null)
+                            userMap
                     );
                     return ResponseEntity.ok(resp);
                 });
@@ -66,15 +68,19 @@ public class AuthController {
     @PostMapping("/refresh")
     public Mono<ResponseEntity<RefreshResponse>> refresh(@Valid @RequestBody RefreshRequest r) {
         return authService.refresh(r.refreshToken())
-                .map(tokens -> ResponseEntity.ok(
-                        new RefreshResponse(
-                                String.valueOf(tokens.get("access_token")),
-                                String.valueOf(tokens.get("refresh_token")),
-                                String.valueOf(tokens.getOrDefault("token_type", "bearer")),
-                                (Integer) tokens.getOrDefault("expires_in", null),
-                                (Map<String, Object>) tokens.getOrDefault("user", null)
-                        )
-                ));
+                .map(tokens -> {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> userMap = (Map<String, Object>) tokens.getOrDefault("user", null);
+                    return ResponseEntity.ok(
+                            new RefreshResponse(
+                                    String.valueOf(tokens.get("access_token")),
+                                    String.valueOf(tokens.get("refresh_token")),
+                                    String.valueOf(tokens.getOrDefault("token_type", "bearer")),
+                                    (Integer) tokens.getOrDefault("expires_in", null),
+                                    userMap
+                            )
+                    );
+                });
     }
 
     /* ---------------------------------------------------------
@@ -83,17 +89,17 @@ public class AuthController {
     @GetMapping("/me")
     public Mono<ResponseEntity<MeResponse>> me(@RequestHeader(name = "Authorization", required = false) String authHeader) {
         if (authHeader == null || authHeader.isBlank()) {
-            return Mono.just(ResponseEntity.status(401).build());
+            return Mono.just(ResponseEntity.status(401).<MeResponse>build());
         }
 
         String token = authHeader.replaceFirst("(?i)^Bearer\\s+", "").trim();
         if (token.isBlank()) {
-            return Mono.just(ResponseEntity.status(401).build());
+            return Mono.just(ResponseEntity.status(401).<MeResponse>build());
         }
 
         return authService.getUser(token)
                 .map(user -> {
-                    String id   = String.valueOf(user.get("id"));
+                    String id    = String.valueOf(user.get("id"));
                     String email = String.valueOf(user.get("email"));
                     String role  = String.valueOf(user.getOrDefault("role", "authenticated"));
                     @SuppressWarnings("unchecked")
@@ -106,6 +112,41 @@ public class AuthController {
                     MeResponse resp = new MeResponse(id, email, role, appMeta, userMeta, createdAt, updatedAt);
                     return ResponseEntity.ok(resp);
                 })
-                .onErrorResume(ex -> Mono.just(ResponseEntity.status(401).build()));
+                .onErrorResume(ex -> Mono.just(ResponseEntity.status(401).<MeResponse>build()));
+    }
+
+    /* ---------------------------------------------------------
+     * DELETE (self-service) con confirmación
+     * --------------------------------------------------------- */
+    @DeleteMapping("/delete")
+    public Mono<ResponseEntity<DeleteResponse>> deleteSelf(
+            @RequestHeader(name = "Authorization", required = false) String authHeader,
+            @Valid @RequestBody DeleteRequest body
+    ) {
+        // 0) Confirmación del usuario: debe escribir exactamente "eliminar"
+        if (body == null || body.confirmation() == null
+                || !body.confirmation().trim().equalsIgnoreCase("eliminar")) {
+            return Mono.just(ResponseEntity.badRequest()
+                    .body(new DeleteResponse("rejected", "Debes escribir 'eliminar' para confirmar.")));
+        }
+
+        // 1) Autorización
+        if (authHeader == null || authHeader.isBlank()) {
+            return Mono.just(ResponseEntity.status(401).<DeleteResponse>build());
+        }
+
+        String token = authHeader.replaceFirst("(?i)^Bearer\\s+", "").trim();
+        if (token.isBlank()) {
+            return Mono.just(ResponseEntity.status(401).<DeleteResponse>build());
+        }
+
+        // 2) Eliminar cuenta (admin via AuthService)
+        return authService.deleteAccount(token)
+                .then(Mono.just(ResponseEntity.ok(new DeleteResponse("deleted", "Tu cuenta ha sido eliminada."))))
+                .onErrorResume(ex -> {
+                    // Si quieres idempotencia ante 404 del IdP, puedes devolver "deleted" igualmente.
+                    return Mono.just(ResponseEntity.status(403)
+                            .body(new DeleteResponse("forbidden", "No fue posible eliminar la cuenta.")));
+                });
     }
 }
