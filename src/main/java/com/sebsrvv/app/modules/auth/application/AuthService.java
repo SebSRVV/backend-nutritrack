@@ -95,7 +95,7 @@ public class AuthService {
                 "email", email,
                 "password", password,
                 "user_metadata", userMeta,
-                "email_confirm", false
+                "email_confirm", true
         );
 
         log.info("[API/register] payload: {}", redact(body));
