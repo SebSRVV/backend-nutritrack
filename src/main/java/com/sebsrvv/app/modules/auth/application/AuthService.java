@@ -209,24 +209,42 @@ public class AuthService {
                     if (r.activity_level() != null) updates.put("activity_level", r.activity_level().dbValue());
                     if (r.diet_type() != null)      updates.put("diet_type",      r.diet_type().dbValue());
 
-                    // 2.1) BMI si hay altura/peso
+                    // 2.1) BMI si hay altura/peso en el payload
                     Double bmi = computeBmi(r.height_cm(), r.weight_kg());
                     if (bmi != null) updates.put("bmi", bmi);
 
                     // 3) PATCH + fallback a UPSERT si no existe fila
                     return patchOrUpsertProfile(accessToken, userId, updates)
-                            .map(row -> new UpdateProfileResponse(
-                                    String.valueOf(row.getOrDefault("id", userId)),
-                                    String.valueOf(row.getOrDefault("sex", updates.get("sex"))),
-                                    (Integer) row.getOrDefault("height_cm", updates.get("height_cm")),
-                                    (Integer) row.getOrDefault("weight_kg", updates.get("weight_kg")),
-                                    String.valueOf(row.getOrDefault("activity_level", updates.get("activity_level"))),
-                                    String.valueOf(row.getOrDefault("diet_type", updates.get("diet_type"))),
-                                    (row.get("bmi") instanceof Number n)
-                                            ? n.doubleValue()
-                                            : (updates.get("bmi") instanceof Number m ? ((Number) m).doubleValue() : null),
-                                    String.valueOf(row.getOrDefault("updated_at", null))
-                            ));
+                            .map(row -> {
+                                String idOut      = String.valueOf(row.getOrDefault("id", userId));
+                                String sexOut     = String.valueOf(row.getOrDefault("sex", updates.get("sex")));
+                                String actOut     = String.valueOf(row.getOrDefault("activity_level", updates.get("activity_level")));
+                                String dietOut    = String.valueOf(row.getOrDefault("diet_type", updates.get("diet_type")));
+                                String updatedOut = String.valueOf(row.getOrDefault("updated_at", null));
+
+                                Integer heightOut = toInt(row.get("height_cm"));
+                                if (heightOut == null) heightOut = toInt(updates.get("height_cm"));
+
+                                Integer weightOut = toInt(row.get("weight_kg"));
+                                if (weightOut == null) weightOut = toInt(updates.get("weight_kg"));
+
+                                Double  bmiOut    = toDouble(row.get("bmi"));
+                                if (bmiOut == null) {
+                                    Object b = updates.get("bmi");
+                                    bmiOut = (b instanceof Number nb) ? nb.doubleValue() : toDouble(b);
+                                }
+
+                                return new UpdateProfileResponse(
+                                        idOut,
+                                        sexOut,
+                                        heightOut,
+                                        weightOut,
+                                        actOut,
+                                        dietOut,
+                                        bmiOut,
+                                        updatedOut
+                                );
+                            });
                 });
     }
 
@@ -434,6 +452,13 @@ public class AuthService {
         if (o == null) return null;
         if (o instanceof Number n) return n.intValue();
         try { return Integer.parseInt(String.valueOf(o)); }
+        catch (Exception e) { return null; }
+    }
+
+    private static Double toDouble(Object o) {
+        if (o == null) return null;
+        if (o instanceof Number n) return n.doubleValue();
+        try { return Double.parseDouble(String.valueOf(o)); }
         catch (Exception e) { return null; }
     }
 
