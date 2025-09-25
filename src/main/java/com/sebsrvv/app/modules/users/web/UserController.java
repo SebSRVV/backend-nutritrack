@@ -18,8 +18,12 @@ public class UserController {
         this.authService = authService;
     }
 
-    /** Editar perfil del usuario autenticado. */
-    @PutMapping("/me")
+    /** Editar perfil del usuario autenticado.
+     *  Rutas soportadas:
+     *    - PUT /api/users/edit   (nueva)
+     *    - PUT /api/users/me     (compatibilidad)
+     */
+    @PutMapping({"/edit", "/me"})
     public Mono<ResponseEntity<UpdateProfileResponse>> updateMe(
             @RequestHeader(name = "Authorization", required = false) String authHeader,
             @Valid @RequestBody UpdateProfileRequest body

@@ -5,25 +5,30 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Locale;
 
 public enum ActivityLevel {
-    sedentary("sedentary"),
-    moderate("moderate"),
-    very_active("very_active");
+    SEDENTARY("sedentary"),
+    MODERATE("moderate"),
+    VERY_ACTIVE("very_active");
 
     private final String dbValue;
+
     ActivityLevel(String dbValue) { this.dbValue = dbValue; }
 
-    @JsonValue public String dbValue() { return dbValue; }
+    /** Siempre serializa el valor que espera la DB (snake_case) */
+    @JsonValue
+    public String dbValue() { return dbValue; }
 
+    /** Acepta veryActive / very-active / VERY_ACTIVE / very_active */
     @JsonCreator
     public static ActivityLevel from(Object raw) {
         if (raw == null) return null;
         String s = String.valueOf(raw).trim();
         if (s.isEmpty()) return null;
+
         String key = s.toLowerCase(Locale.ROOT).replace('-', '_');
         return switch (key) {
-            case "sedentary"   -> sedentary;
-            case "moderate"    -> moderate;
-            case "very_active" -> very_active;
+            case "sedentary"   -> SEDENTARY;
+            case "moderate"    -> MODERATE;
+            case "very_active" -> VERY_ACTIVE;
             default -> throw new IllegalArgumentException("activity_level inválido: " + s);
         };
     }
