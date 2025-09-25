@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -35,16 +36,20 @@ public class AuthService {
     private final WebClient adminHttp;
     /** Cliente con anonKey (público) */
     private final WebClient publicHttp;
+    /** Necesario para el header Authorization en /token */
+    private final String anonKey;
 
     public AuthService(
             @Value("${supabase.url}") String baseUrl,
             @Value("${supabase.serviceKey}") String serviceKey,
             @Value("${supabase.anonKey}") String anonKey
     ) {
+        this.anonKey = anonKey;
+
         this.adminHttp = WebClient.builder()
                 .baseUrl(baseUrl)
                 .defaultHeader("apikey", serviceKey)
-                .defaultHeader("Authorization", "Bearer " + serviceKey)
+                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + serviceKey)
                 .filter((req, next) -> {
                     log.info("[SUPABASE/ADMIN] --> {} {}", req.method(), req.url());
                     return next.exchange(req)
@@ -74,8 +79,8 @@ public class AuthService {
         final String email    = (String) payload.get("email");
         final String password = (String) payload.get("password");
 
-        Integer h = (Integer) payload.get("height_cm");
-        Integer w = (Integer) payload.get("weight_kg");
+        Integer h = toInt(payload.get("height_cm"));
+        Integer w = toInt(payload.get("weight_kg"));
         Double bmi = computeBmi(h, w);
 
         Integer age = safeAgeFromDob((String) payload.get("dob"));
@@ -105,7 +110,7 @@ public class AuthService {
     }
 
     /* ---------------------------------------------------------
-     * LOGIN (password grant) - usa anonKey
+     * LOGIN (password grant) - requiere Authorization: Bearer ANON_KEY
      * --------------------------------------------------------- */
     public Mono<Map<String, Object>> login(String email, String password) {
         Map<String, Object> body = Map.of("email", email, "password", password);
@@ -115,6 +120,7 @@ public class AuthService {
         return publicHttp.post()
                 .uri("/auth/v1/token?grant_type=password")
                 .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + anonKey)   // <-- clave
                 .bodyValue(body)
                 .exchangeToMono(this::handleTokenResponse)
                 .doOnSuccess(out -> log.info("[API/login] OK <- keys: {}", out.keySet()))
@@ -122,7 +128,7 @@ public class AuthService {
     }
 
     /* ---------------------------------------------------------
-     * REFRESH (refresh_token grant) - usa anonKey
+     * REFRESH (refresh_token grant) - requiere Authorization: Bearer ANON_KEY
      * --------------------------------------------------------- */
     public Mono<Map<String, Object>> refresh(String refreshToken) {
         Map<String, Object> body = Map.of("refresh_token", refreshToken);
@@ -131,6 +137,7 @@ public class AuthService {
         return publicHttp.post()
                 .uri("/auth/v1/token?grant_type=refresh_token")
                 .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + anonKey)   // <-- clave
                 .bodyValue(body)
                 .exchangeToMono(this::handleTokenResponse)
                 .doOnSuccess(out -> log.info("[API/refresh] OK <- keys: {}", out.keySet()))
@@ -138,12 +145,12 @@ public class AuthService {
     }
 
     /* ---------------------------------------------------------
-     * USER (Bearer access token) - usa anonKey
+     * USER (Bearer access token del usuario)
      * --------------------------------------------------------- */
     public Mono<Map<String, Object>> getUser(String accessToken) {
         return publicHttp.get()
                 .uri("/auth/v1/user")
-                .header("Authorization", "Bearer " + accessToken)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken) // token de usuario
                 .retrieve()
                 .bodyToMono(MAP_OF_OBJECT);
     }
@@ -274,6 +281,13 @@ public class AuthService {
         if (copy.containsKey("password")) copy.put("password", "***");
         if (copy.containsKey("refresh_token")) copy.put("refresh_token", "***");
         return copy;
+    }
+
+    private static Integer toInt(Object o) {
+        if (o == null) return null;
+        if (o instanceof Number n) return n.intValue();
+        try { return Integer.parseInt(String.valueOf(o)); }
+        catch (Exception e) { return null; }
     }
 
     private static Double computeBmi(Integer heightCm, Integer weightKg) {
