@@ -1,6 +1,8 @@
 // src/main/java/com/sebsrvv/app/modules/users/web/MetricsController.java
 package com.sebsrvv.app.modules.users.web;
 
+import com.sebsrvv.app.modules.users.web.dto.GoalsWeeklyItem;
+import org.springframework.http.HttpHeaders;
 import com.sebsrvv.app.modules.users.application.MetricsService;
 import com.sebsrvv.app.modules.users.application.UsersAnalyticsService;
 import com.sebsrvv.app.modules.users.web.dto.FoodByCategoryRequest;
@@ -38,6 +40,22 @@ public class MetricsController {
     ) {
         Map<String, Object> data = metricsService.compute(dob, heightCm, weightKg);
         return ResponseEntity.ok(success(data));
+    }
+
+    @GetMapping("/users/{userId}/analytics/goals-weekly")
+    public Mono<ResponseEntity<Map<String, Object>>> goalsWeekly(
+            @PathVariable UUID userId,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authHeader,
+            @RequestParam(name = "weekStart") String weekStart  // YYYY-MM-DD
+    ) {
+        return analyticsService.goalsWeekly(userId, weekStart, authHeader)
+                .map((java.util.List<GoalsWeeklyItem> data) -> java.util.Map.of(
+                        "ok", true,
+                        "data", data, // lista de objetivos con progreso semanal
+                        "status", 200,
+                        "timestamp", java.time.Instant.now().toString()
+                ))
+                .map(ResponseEntity::ok);
     }
 
     @GetMapping("/users/{userId}/analytics/food-by-category")

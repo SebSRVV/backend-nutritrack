@@ -1,6 +1,9 @@
 // src/main/java/com/sebsrvv/app/modules/users/application/UsersAnalyticsService.java
 package com.sebsrvv.app.modules.users.application;
 
+
+import com.sebsrvv.app.modules.users.web.dto.GoalsWeeklyItem;
+import org.springframework.core.ParameterizedTypeReference;
 import com.sebsrvv.app.modules.users.web.dto.FoodByCategoryRequest;
 import com.sebsrvv.app.modules.users.web.dto.FoodByCategoryResponse;
 import com.sebsrvv.app.modules.users.web.dto.IntakeVsGoalRequest;
@@ -23,6 +26,36 @@ public class UsersAnalyticsService {
 
     public UsersAnalyticsService(SupabaseDataClient supabase) {
         this.supabase = supabase;
+    }
+
+    /* ===================== goals-weekly ===================== */
+    public Mono<java.util.List<GoalsWeeklyItem>> goalsWeekly(UUID userId,
+                                                             String weekStart,
+                                                             String authHeader) {
+        java.util.Map<String, Object> payload = java.util.Map.of(
+                "p_user_id",  userId.toString(),
+                "week_start", weekStart
+        );
+
+        Mono<java.util.List<GoalWeeklyRow>> call = (authHeader != null && !authHeader.isBlank())
+                ? supabase.callRpc("goals_weekly", payload, authHeader,
+                new ParameterizedTypeReference<java.util.List<GoalWeeklyRow>>() {})
+                : supabase.callRpcAsServiceRole("goals_weekly", payload,
+                new ParameterizedTypeReference<java.util.List<GoalWeeklyRow>>() {});
+
+        return call.map(rows -> {
+            java.util.List<GoalsWeeklyItem> out = new java.util.ArrayList<>();
+            for (GoalWeeklyRow r : rows) {
+                GoalsWeeklyItem it = new GoalsWeeklyItem();
+                it.goalId = r.goalId;
+                it.goalName = r.goalName;
+                it.weeklyTarget = r.weeklyTarget != null ? r.weeklyTarget : 0;
+                it.completedThisWeek = r.completedThisWeek != null ? r.completedThisWeek : 0;
+                it.progressPercent = r.progressPercent != null ? r.progressPercent : 0.0;
+                out.add(it);
+            }
+            return out;
+        });
     }
 
     /* ===================== food-by-category ===================== */
