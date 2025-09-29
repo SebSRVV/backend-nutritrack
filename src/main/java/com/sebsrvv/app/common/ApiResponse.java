@@ -1,3 +1,4 @@
+// src/main/java/com/sebsrvv/app/common/ApiResponse.java
 package com.sebsrvv.app.common;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -22,14 +23,5 @@ public record ApiResponse<T>(
 
     public static <T> ApiResponse<T> created(T data) {
         return new ApiResponse<>(true, data, null, 201, Instant.now().toString());
-    }
-
-    /** Helpers para errores */
-    public static <T> ApiResponse<T> fail(String message, int status) {
-        return new ApiResponse<>(false, null, message, status, Instant.now().toString());
-    }
-
-    public static <T> ApiResponse<T> fail(T details, String message, int status) {
-        return new ApiResponse<>(false, details, message, status, Instant.now().toString());
     }
 }

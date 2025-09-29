@@ -4,8 +4,6 @@ import com.sebsrvv.app.modules.auth.application.AuthService;
 import com.sebsrvv.app.modules.auth.web.dto.UpdateProfileRequest;
 import com.sebsrvv.app.modules.auth.web.dto.UpdateProfileResponse;
 import jakarta.validation.Valid;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -13,8 +11,6 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
-
-    private static final Logger log = LoggerFactory.getLogger(UserController.class);
 
     private final AuthService authService;
 
@@ -42,7 +38,6 @@ public class UserController {
 
         return authService.updateProfile(token, body)
                 .map(ResponseEntity::ok)
-                // Importante: no enmascarar todo como 400; dejamos que ApiExceptionHandler responda.
-                .doOnError(ex -> log.error("[PUT /api/users/edit] error", ex));
+                .onErrorResume(ex -> Mono.just(ResponseEntity.status(400).<UpdateProfileResponse>build()));
     }
 }
