@@ -30,7 +30,7 @@ public class SecurityConfig {
                         // Público extra (si aplica)
                         .requestMatchers(HttpMethod.GET, "/api/metrics").permitAll()
 
-                        // Resto de endpoints requieren autenticación
+                        // Todo lo demás requiere JWT (incluye DELETE /api/auth/delete)
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults()));
