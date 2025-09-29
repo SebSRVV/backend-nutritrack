@@ -40,6 +40,21 @@ public class MetricsController {
         return ResponseEntity.ok(success(data));
     }
 
+    @GetMapping("/users/{userId}/analytics/food-by-category")
+    public Mono<ResponseEntity<Map<String,Object>>> foodByCategoryGet(
+            @PathVariable UUID userId,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authHeader,
+            @RequestParam String from,
+            @RequestParam String to,
+            @RequestParam String groupBy
+    ){
+        var body = new FoodByCategoryRequest();
+        body.setFrom(from); body.setTo(to); body.setGroupBy(groupBy);
+        return analyticsService.foodByCategory(userId, body, authHeader)
+                .map(data -> Map.of("ok", true, "data", data, "status", 200, "timestamp", Instant.now().toString()))
+                .map(ResponseEntity::ok);
+    }
+
     @PostMapping("/users/{userId}/analytics/food-by-category")
     public Mono<ResponseEntity<Map<String, Object>>> foodByCategory(
             @PathVariable UUID userId,
@@ -48,6 +63,27 @@ public class MetricsController {
     ) {
         return analyticsService.foodByCategory(userId, body, authHeader)
                 .map(data -> Map.of("ok", true, "data", data, "status", 200, "timestamp", Instant.now().toString()))
+                .map(ResponseEntity::ok);
+    }
+
+    @GetMapping("/users/{userId}/analytics/intake-vs-goal")
+    public Mono<ResponseEntity<Map<String, Object>>> intakeVsGoalGet(
+            @PathVariable UUID userId,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authHeader,
+            @RequestParam String from,
+            @RequestParam String to
+    ) {
+        var body = new com.sebsrvv.app.modules.users.web.dto.IntakeVsGoalRequest();
+        body.setFrom(from);
+        body.setTo(to);
+
+        return analyticsService.intakeVsGoal(userId, body, authHeader)
+                .map(data -> Map.of(
+                        "ok", true,
+                        "data", data,
+                        "status", 200,
+                        "timestamp", java.time.Instant.now().toString()
+                ))
                 .map(ResponseEntity::ok);
     }
 
