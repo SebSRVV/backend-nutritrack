@@ -1,10 +1,8 @@
-package com.sebsrvv.app.modules.meals.web.mapper;
+package com.sebsrvv.app.modules.meals.web;
 
 import com.sebsrvv.app.modules.meals.domain.Meal;
-import com.sebsrvv.app.modules.meals.domain.MealCategory;
 import com.sebsrvv.app.modules.meals.web.dto.MealResponse;
 
-import java.util.List;
 import java.util.stream.Collectors;
 
 public class MealMapper {
@@ -24,15 +22,12 @@ public class MealMapper {
         response.setNote(meal.getNote());
 
         if (meal.getCategories() != null) {
-            List<MealResponse.CategoryDto> categoryDtos = meal.getCategories().stream()
-                    .map(c -> {
-                        MealResponse.CategoryDto dto = new MealResponse.CategoryDto();
-                        dto.setId(c.getId());
-                        dto.setName(c.getName());
-                        return dto;
-                    })
-                    .collect(Collectors.toList());
-            response.setCategories(categoryDtos);
+            response.setCategories(meal.getCategories().stream().map(c -> {
+                MealResponse.CategoryDto dto = new MealResponse.CategoryDto();
+                dto.setId(c.getId());
+                dto.setName(c.getName());
+                return dto;
+            }).collect(Collectors.toList()));
         }
         return response;
     }
