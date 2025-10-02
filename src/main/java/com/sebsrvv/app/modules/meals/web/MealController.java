@@ -5,8 +5,6 @@ import com.sebsrvv.app.modules.meals.domain.Meal;
 import com.sebsrvv.app.modules.meals.domain.MealType;
 import com.sebsrvv.app.modules.meals.web.dto.MealRequest;
 import com.sebsrvv.app.modules.meals.web.dto.MealResponse;
-import com.sebsrvv.app.modules.meals.web.mapper.MealMapper;
-
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,18 +28,8 @@ public class MealController {
     public ResponseEntity<MealResponse> createMeal(
             @PathVariable UUID userId,
             @Valid @RequestBody MealRequest request) {
-
-        Meal meal = new Meal();
+        Meal meal = mapRequestToMeal(request);
         meal.setUserId(userId);
-        meal.setMealType(MealType.valueOf(request.getMealType().toUpperCase()));
-        meal.setDescription(request.getDescription());
-        meal.setCalories(request.getCalories());
-        meal.setProteinG(request.getProteinG());
-        meal.setCarbsG(request.getCarbsG());
-        meal.setFatG(request.getFatG());
-        meal.setLoggedAt(request.getLoggedAt());
-        meal.setNote(request.getNote());
-
         Meal saved = mealService.registerMeal(meal);
         return ResponseEntity.ok(MealMapper.toResponse(saved));
     }
@@ -50,12 +38,10 @@ public class MealController {
     public ResponseEntity<List<MealResponse>> getMealsByDate(
             @PathVariable UUID userId,
             @RequestParam String date) {
-
         List<Meal> meals = mealService.getMealsByDate(userId, LocalDate.parse(date));
         List<MealResponse> responses = meals.stream()
                 .map(MealMapper::toResponse)
                 .collect(Collectors.toList());
-
         return ResponseEntity.ok(responses);
     }
 
@@ -64,18 +50,8 @@ public class MealController {
             @PathVariable UUID userId,
             @PathVariable UUID mealId,
             @Valid @RequestBody MealRequest request) {
-
-        Meal updated = new Meal();
-        updated.setMealType(MealType.valueOf(request.getMealType().toUpperCase()));
-        updated.setDescription(request.getDescription());
-        updated.setCalories(request.getCalories());
-        updated.setProteinG(request.getProteinG());
-        updated.setCarbsG(request.getCarbsG());
-        updated.setFatG(request.getFatG());
-        updated.setLoggedAt(request.getLoggedAt());
-        updated.setNote(request.getNote());
-
-        return mealService.updateMeal(mealId, updated)
+        Meal updated = mapRequestToMeal(request);
+        return mealService.updateMeal(userId, mealId, updated)
                 .map(m -> ResponseEntity.ok(MealMapper.toResponse(m)))
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -84,8 +60,20 @@ public class MealController {
     public ResponseEntity<?> deleteMeal(
             @PathVariable UUID userId,
             @PathVariable UUID mealId) {
-        mealService.deleteMeal(mealId);
+        mealService.deleteMeal(userId, mealId);
         return ResponseEntity.ok().body("{\"status\":\"success\",\"message\":\"Meal deleted\"}");
     }
-}
 
+    private Meal mapRequestToMeal(MealRequest request) {
+        Meal meal = new Meal();
+        meal.setMealType(MealType.valueOf(request.getMealType().toUpperCase()));
+        meal.setDescription(request.getDescription());
+        meal.setCalories(request.getCalories());
+        meal.setProteinG(request.getProteinG());
+        meal.setCarbsG(request.getCarbsG());
+        meal.setFatG(request.getFatG());
+        meal.setLoggedAt(request.getLoggedAt());
+        meal.setNote(request.getNote());
+        return meal;
+    }
+}
