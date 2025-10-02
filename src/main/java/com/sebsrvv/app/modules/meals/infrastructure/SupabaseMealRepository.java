@@ -1,12 +1,13 @@
 package com.sebsrvv.app.modules.meals.infrastructure;
 
 import com.sebsrvv.app.modules.meals.domain.*;
+import org.springframework.stereotype.Repository;
+
 import java.time.LocalDate;
 import java.util.*;
 
+@Repository   // ✅ Ahora Spring la reconoce
 public class SupabaseMealRepository implements MealRepository {
-
-    // Simulación, aquí usarías tu SupabaseDataClient
     private final Map<UUID, Meal> db = new HashMap<>();
     private final List<MealCategory> categories = List.of(
             new MealCategory() {{ setId(1); setName("Frutas"); setDescription("Frutas naturales"); }},
@@ -33,8 +34,8 @@ public class SupabaseMealRepository implements MealRepository {
     @Override
     public List<Meal> findByUserAndDate(UUID userId, LocalDate date) {
         return db.values().stream()
-                .filter(m -> m.getUserId().equals(userId)
-                        && m.getLoggedAt().atZone(java.time.ZoneOffset.UTC).toLocalDate().equals(date))
+                .filter(m -> m.getUserId().equals(userId) &&
+                        m.getLoggedAt().atZone(java.time.ZoneOffset.UTC).toLocalDate().equals(date))
                 .toList();
     }
 
