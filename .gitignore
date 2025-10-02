@@ -31,3 +31,13 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# ===== entorno/secrets =====
+.env
+.env.*
+*.secret
+*.secrets
+*.key
+*.pem
+# variables locales (no se versionan)
+*.local.properties
