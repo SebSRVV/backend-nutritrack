@@ -8,7 +8,6 @@ public class NutritionReportResponse {
     private String generatedAt; // ISO-8601
 
     public NutritionReportResponse() {}
-
     public NutritionReportResponse(String id, String reportName, String reportType,
                                    String reportUrl, String generatedAt) {
         this.id = id;
@@ -23,7 +22,6 @@ public class NutritionReportResponse {
     public String getReportType() { return reportType; }
     public String getReportUrl() { return reportUrl; }
     public String getGeneratedAt() { return generatedAt; }
-
     public void setId(String id) { this.id = id; }
     public void setReportName(String reportName) { this.reportName = reportName; }
     public void setReportType(String reportType) { this.reportType = reportType; }
