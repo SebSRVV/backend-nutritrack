@@ -24,6 +24,7 @@ public class MealController {
         this.mealService = mealService;
     }
 
+    // Funciona Localmente pero no afecta a la tabla categories en Supabase
     @PostMapping
     public ResponseEntity<MealResponse> createMeal(
             @PathVariable UUID userId,
@@ -34,6 +35,7 @@ public class MealController {
         return ResponseEntity.ok(MealMapper.toResponse(saved));
     }
 
+    // OK 200 pero funciona con datos locales SQL y no con el SUPABASE
     @GetMapping
     public ResponseEntity<List<MealResponse>> getMealsByDate(
             @PathVariable UUID userId,
@@ -45,6 +47,8 @@ public class MealController {
         return ResponseEntity.ok(responses);
     }
 
+
+    // Si edita, OK 200 pero no afecta a la tabla meals en Supabase
     @PutMapping("/{mealId}")
     public ResponseEntity<MealResponse> updateMeal(
             @PathVariable UUID userId,
@@ -56,6 +60,7 @@ public class MealController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    // OK 200 pero no afecta a la tabla meals en Supabase
     @DeleteMapping("/{mealId}")
     public ResponseEntity<?> deleteMeal(
             @PathVariable UUID userId,
