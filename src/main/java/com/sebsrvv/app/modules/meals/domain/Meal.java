@@ -12,10 +12,10 @@ public class Meal {
     private UUID userId;
     private MealType mealType;
     private String description;
-    private int calories;
-    private double proteinG;
-    private double carbsG;
-    private double fatG;
+    private Integer calories;
+    private Double proteinG;
+    private Double carbsG;
+    private Double fatG;
     private Instant loggedAt;
     private Instant createdAt;
     private List<MealCategory> categories;
