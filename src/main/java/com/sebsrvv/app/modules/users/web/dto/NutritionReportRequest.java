@@ -1,26 +1,36 @@
 package com.sebsrvv.app.modules.users.web.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
+
+import java.time.LocalDate;
 
 public class NutritionReportRequest {
 
     @NotNull
-    @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "from must be YYYY-MM-DD")
-    private String from;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate from;
 
     @NotNull
-    @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "to must be YYYY-MM-DD")
-    private String to;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate to;
 
+    @Valid
     @NotNull
     private Include include = new Include();
 
+    @AssertTrue(message = "'from' must be <= 'to'")
+    public boolean isValidRange() {
+        return from == null || to == null || !from.isAfter(to);
+    }
+
     public static class Include {
-        private boolean foodByCategory;
-        private boolean intakeVsGoal;
-        private boolean trends;
-        private boolean notes;
+        private boolean foodByCategory = true;
+        private boolean intakeVsGoal   = true;
+        private boolean trends         = true;
+        private boolean notes          = true;
 
         public boolean isFoodByCategory() { return foodByCategory; }
         public void setFoodByCategory(boolean foodByCategory) { this.foodByCategory = foodByCategory; }
@@ -32,10 +42,10 @@ public class NutritionReportRequest {
         public void setNotes(boolean notes) { this.notes = notes; }
     }
 
-    public String getFrom() { return from; }
-    public void setFrom(String from) { this.from = from; }
-    public String getTo() { return to; }
-    public void setTo(String to) { this.to = to; }
+    public LocalDate getFrom() { return from; }
+    public void setFrom(LocalDate from) { this.from = from; }
+    public LocalDate getTo() { return to; }
+    public void setTo(LocalDate to) { this.to = to; }
     public Include getInclude() { return include; }
     public void setInclude(Include include) { this.include = include; }
 }

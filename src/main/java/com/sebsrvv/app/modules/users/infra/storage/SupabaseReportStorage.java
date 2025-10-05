@@ -1,7 +1,7 @@
 package com.sebsrvv.app.modules.users.infra.storage;
 
-import com.sebsrvv.app.supabase.SupabaseStorageProperties;
 import com.sebsrvv.app.modules.users.port.out.ReportStoragePort;
+import com.sebsrvv.app.supabase.SupabaseStorageProperties;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
@@ -23,10 +23,12 @@ public class SupabaseReportStorage implements ReportStoragePort {
     }
 
     @Override
-    public String upload(String pathKey, byte[] content, String contentType) {
+    public String upload(String pathKeyRaw, byte[] content, String contentType) {
         final String baseUrl = strip(props.getUrl());
+        final String pathKey = sanitize(pathKeyRaw);
+        final String encodedPath = encode(pathKey);
         try {
-            // 1) Subir (upsert)
+            // PUT (upsert)
             HttpRequest put = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + "/storage/v1/object/" + props.getBucket() + "/" + pathKey))
                     .header("Authorization", "Bearer " + props.getServiceKey())
@@ -40,14 +42,13 @@ public class SupabaseReportStorage implements ReportStoragePort {
                 throw new RuntimeException("Supabase upload failed: " + putResp.statusCode() + " - " + putResp.body());
             }
 
-            // 2) URL resultante
             if (props.isPublicBucket()) {
-                return baseUrl + "/storage/v1/object/public/" + props.getBucket() + "/" + encode(pathKey);
+                return baseUrl + "/storage/v1/object/public/" + props.getBucket() + "/" + encodedPath;
             } else {
                 int expiresInSeconds = Math.max(60, props.getUrlExpirationMinutes() * 60);
                 String body = "{\"expiresIn\":" + expiresInSeconds + "}";
                 HttpRequest sign = HttpRequest.newBuilder()
-                        .uri(URI.create(baseUrl + "/storage/v1/object/sign/" + props.getBucket() + "/" + pathKey))
+                        .uri(URI.create(baseUrl + "/storage/v1/object/sign/" + props.getBucket() + "/" + encodedPath))
                         .header("Authorization", "Bearer " + props.getServiceKey())
                         .header("apikey", props.getServiceKey())
                         .header("Content-Type", "application/json")
@@ -71,9 +72,10 @@ public class SupabaseReportStorage implements ReportStoragePort {
 
     // helpers
     private static String strip(String u){ return u.endsWith("/") ? u.substring(0, u.length()-1) : u; }
+    private static String sanitize(String p){ return (p!=null && p.startsWith("/")) ? p.substring(1) : p; }
     private static String encode(String path) {
         return java.util.Arrays.stream(path.split("/"))
-                .map(p -> java.net.URLEncoder.encode(p, StandardCharsets.UTF_8))
+                .map(s -> java.net.URLEncoder.encode(s, StandardCharsets.UTF_8))
                 .reduce((a,b)->a+"/"+b).orElse("");
     }
     private static String extract(String json, String field) {
