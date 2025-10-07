@@ -1,11 +1,15 @@
 package com.sebsrvv.app.modules.meals.application;
 
-import com.sebsrvv.app.modules.meals.domain.*;
+import com.sebsrvv.app.modules.meals.domain.Meal;
+import com.sebsrvv.app.modules.meals.domain.MealCategory;
+import com.sebsrvv.app.modules.meals.domain.MealRepository;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.time.Instant;
-import java.util.*;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class MealService {
@@ -16,14 +20,16 @@ public class MealService {
         this.mealRepository = mealRepository;
     }
 
-    public Meal registerMeal(Meal meal) {
-        meal.setId(UUID.randomUUID());
+    public Meal registerMeal(Meal meal, List<Integer> categoryIds, List<String> categoryNames, String bearer) {
+        meal.setId(null); // deja que lo genere la BD si quieres
         meal.setCreatedAt(Instant.now());
-        return mealRepository.save(meal);
+        return mealRepository.insert(meal, categoryIds, categoryNames, bearer);
     }
 
-    public Optional<Meal> updateMeal(UUID userId, UUID mealId, Meal updated) {
-        return mealRepository.findById(mealId).map(existing -> {
+    public Optional<Meal> updateMeal(UUID userId, UUID mealId, Meal updated,
+                                     List<Integer> categoryIds, List<String> categoryNames,
+                                     String bearer) {
+        return mealRepository.findById(mealId, bearer).map(existing -> {
             if (!existing.getUserId().equals(userId)) {
                 throw new IllegalArgumentException("Unauthorized: meal does not belong to this user");
             }
@@ -34,27 +40,26 @@ public class MealService {
             existing.setCarbsG(updated.getCarbsG());
             existing.setFatG(updated.getFatG());
             existing.setLoggedAt(updated.getLoggedAt());
-            existing.setCategories(updated.getCategories());
             existing.setNote(updated.getNote());
-            return mealRepository.save(existing);
+            return mealRepository.update(existing, categoryIds, categoryNames, bearer);
         });
     }
 
-    public void deleteMeal(UUID userId, UUID mealId) {
-        mealRepository.findById(mealId).ifPresent(meal -> {
+    public void deleteMeal(UUID userId, UUID mealId, String bearer) {
+        mealRepository.findById(mealId, bearer).ifPresent(meal -> {
             if (meal.getUserId().equals(userId)) {
-                mealRepository.delete(mealId);
+                mealRepository.delete(mealId, bearer);
             } else {
                 throw new IllegalArgumentException("Unauthorized deletion attempt");
             }
         });
     }
 
-    public List<Meal> getMealsByDate(UUID userId, LocalDate date) {
-        return mealRepository.findByUserAndDate(userId, date);
+    public List<Meal> getMealsByDate(UUID userId, LocalDate date, String bearer) {
+        return mealRepository.findByUserAndDate(userId, date, bearer);
     }
 
-    public List<MealCategory> getCategories() {
-        return mealRepository.findAllCategories();
+    public List<MealCategory> getCategories(String bearer) {
+        return mealRepository.findAllCategories(bearer);
     }
 }

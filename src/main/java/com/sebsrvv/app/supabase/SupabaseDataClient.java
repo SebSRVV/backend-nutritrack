@@ -7,7 +7,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -27,28 +26,24 @@ public class SupabaseDataClient {
         this.anonKey = anonKey;
         this.serviceKey = serviceKey;
 
-        // 🔧 Evita duplicar "/rest/v1" en la URL
-        String finalUrl = baseUrl.endsWith("/rest/v1") ? baseUrl : baseUrl + "/rest/v1";
-
+        // Cliente base público (anonKey), útil para selects abiertos o RLS
         this.rest = builder
-                .baseUrl(finalUrl)
+                .baseUrl(baseUrl + "/rest/v1")
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                 .defaultHeader("apikey", anonKey)
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + anonKey)
                 .defaultHeader("Prefer", "return=representation")
                 .build();
     }
 
-    // -------------------- MÉTODOS CRUD --------------------
+    // ============= Métodos CRUD genéricos (usa anonKey por defecto) =============
 
     public Mono<List> insert(String table, Map<String, Object> row) {
         return rest.post()
                 .uri("/" + table)
                 .bodyValue(List.of(row))
                 .retrieve()
-                .bodyToMono(List.class)
-                .onErrorResume(WebClientResponseException.class, this::handleError);
+                .bodyToMono(List.class);
     }
 
     public Mono<List> select(String table, String queryParams) {
@@ -56,8 +51,7 @@ public class SupabaseDataClient {
         return rest.get()
                 .uri("/" + table + qp)
                 .retrieve()
-                .bodyToMono(List.class)
-                .onErrorResume(WebClientResponseException.class, this::handleError);
+                .bodyToMono(List.class);
     }
 
     public Mono<Integer> delete(String table, String queryParams) {
@@ -65,8 +59,7 @@ public class SupabaseDataClient {
                 .uri("/" + table + "?" + queryParams)
                 .retrieve()
                 .toBodilessEntity()
-                .map(resp -> resp.getStatusCode().value())
-                .onErrorResume(WebClientResponseException.class, this::handleErrorCode);
+                .map(resp -> resp.getStatusCode().value());
     }
 
     public Mono<List> upsert(String table, Map<String, Object> row) {
@@ -75,12 +68,12 @@ public class SupabaseDataClient {
                 .header("Prefer", "resolution=merge-duplicates,return=representation")
                 .bodyValue(List.of(row))
                 .retrieve()
-                .bodyToMono(List.class)
-                .onErrorResume(WebClientResponseException.class, this::handleError);
+                .bodyToMono(List.class);
     }
 
-    // -------------------- RPC --------------------
+    // ============= RPC =============
 
+    /** Llama un RPC con el Authorization que le pases (JWT usuario o service_role) */
     public <T> Mono<T> callRpc(String fnName,
                                Map<String, Object> payload,
                                String authorizationBearer,
@@ -90,10 +83,10 @@ public class SupabaseDataClient {
                 .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
                 .bodyValue(payload)
                 .retrieve()
-                .bodyToMono(typeRef)
-                .onErrorResume(WebClientResponseException.class, this::handleError);
+                .bodyToMono(typeRef);
     }
 
+    /** Llama un RPC como service_role (admin) */
     public <T> Mono<T> callRpcAsServiceRole(String fnName,
                                             Map<String, Object> payload,
                                             ParameterizedTypeReference<T> typeRef) {
@@ -102,19 +95,75 @@ public class SupabaseDataClient {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceKey)
                 .bodyValue(payload)
                 .retrieve()
-                .bodyToMono(typeRef)
-                .onErrorResume(WebClientResponseException.class, this::handleError);
+                .bodyToMono(typeRef);
     }
 
-    // -------------------- ERRORES --------------------
+    // ============= Helpers adicionales =============
 
-    private <T> Mono<T> handleError(WebClientResponseException ex) {
-        System.err.println(" Supabase error (" + ex.getStatusCode() + "): " + ex.getResponseBodyAsString());
-        return Mono.error(ex);
+    public Mono<List> insertMany(String table, List<Map<String, Object>> rows) {
+        return rest.post()
+                .uri("/" + table)
+                .bodyValue(rows)
+                .retrieve()
+                .bodyToMono(List.class);
     }
 
-    private <T> Mono<T> handleErrorCode(WebClientResponseException ex) {
-        System.err.println(" HTTP error: " + ex.getStatusCode());
-        return Mono.just((T) Integer.valueOf(ex.getStatusCode().value()));
+    public Mono<Integer> patch(String table, String queryParams, Map<String, Object> body) {
+        return rest.patch()
+                .uri("/" + table + "?" + queryParams)
+                .bodyValue(body)
+                .retrieve()
+                .toBodilessEntity()
+                .map(resp -> resp.getStatusCode().value());
+    }
+
+    // ============= Versiones seguras con JWT (para RLS) =============
+
+    public Mono<List> insertWithAuth(String table, Map<String, Object> row, String bearer) {
+        return rest.post()
+                .uri("/" + table)
+                .header(HttpHeaders.AUTHORIZATION, bearer)
+                .bodyValue(List.of(row))
+                .retrieve()
+                .bodyToMono(List.class);
+    }
+
+    public Mono<List> insertManyWithAuth(String table, List<Map<String, Object>> rows, String bearer) {
+        return rest.post()
+                .uri("/" + table)
+                .header(HttpHeaders.AUTHORIZATION, bearer)
+                .bodyValue(rows)
+                .retrieve()
+                .bodyToMono(List.class);
+    }
+
+    public Mono<Integer> patchWithAuth(String table, String queryParams, Map<String, Object> body, String bearer) {
+        return rest.patch()
+                .uri("/" + table + "?" + queryParams)
+                .header(HttpHeaders.AUTHORIZATION, bearer)
+                .bodyValue(body)
+                .retrieve()
+                .toBodilessEntity()
+                .map(resp -> resp.getStatusCode().value());
+    }
+
+    /** Nuevo: select con JWT dinámico (muy útil para RLS) */
+    public Mono<List> selectWithAuth(String table, String queryParams, String bearer) {
+        String qp = (queryParams == null || queryParams.isBlank()) ? "" : "?" + queryParams;
+        return rest.get()
+                .uri("/" + table + qp)
+                .header(HttpHeaders.AUTHORIZATION, bearer)
+                .retrieve()
+                .bodyToMono(List.class);
+    }
+
+    /** Nuevo: delete con JWT dinámico */
+    public Mono<Integer> deleteWithAuth(String table, String queryParams, String bearer) {
+        return rest.delete()
+                .uri("/" + table + "?" + queryParams)
+                .header(HttpHeaders.AUTHORIZATION, bearer)
+                .retrieve()
+                .toBodilessEntity()
+                .map(resp -> resp.getStatusCode().value());
     }
 }
