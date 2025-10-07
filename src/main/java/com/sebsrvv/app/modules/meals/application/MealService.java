@@ -4,9 +4,8 @@ import com.sebsrvv.app.modules.meals.domain.*;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.Instant;
+import java.util.*;
 
 @Service
 public class MealService {
@@ -19,14 +18,14 @@ public class MealService {
 
     public Meal registerMeal(Meal meal) {
         meal.setId(UUID.randomUUID());
-        meal.setCreatedAt(java.time.Instant.now());
+        meal.setCreatedAt(Instant.now());
         return mealRepository.save(meal);
     }
 
     public Optional<Meal> updateMeal(UUID userId, UUID mealId, Meal updated) {
         return mealRepository.findById(mealId).map(existing -> {
             if (!existing.getUserId().equals(userId)) {
-                return null; // Prevención de acceso indebido
+                throw new IllegalArgumentException("Unauthorized: meal does not belong to this user");
             }
             existing.setMealType(updated.getMealType());
             existing.setDescription(updated.getDescription());
@@ -45,6 +44,8 @@ public class MealService {
         mealRepository.findById(mealId).ifPresent(meal -> {
             if (meal.getUserId().equals(userId)) {
                 mealRepository.delete(mealId);
+            } else {
+                throw new IllegalArgumentException("Unauthorized deletion attempt");
             }
         });
     }
