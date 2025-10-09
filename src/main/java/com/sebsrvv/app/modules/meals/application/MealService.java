@@ -8,34 +8,27 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.*;
 
 /**
  * Servicio encargado de la lógica de negocio relacionada con las comidas (Meals).
- * Se comunica con el repositorio de datos para registrar, actualizar o eliminar comidas.
  */
 @Service
 public class MealService {
 
     private final MealRepository mealRepository;
 
-    // Inyección de dependencia del repositorio
     public MealService(MealRepository mealRepository) {
         this.mealRepository = mealRepository;
     }
 
-    /**
-     * Registra una nueva comida en la base de datos.
-     */
     public Meal registerMeal(Meal meal, List<Integer> categoryIds, List<String> categoryNames, String bearer) {
-        meal.setId(null); // deja que la BD genere el ID
+        meal.setId(null);
         meal.setCreatedAt(Instant.now());
         return mealRepository.insert(meal, categoryIds, categoryNames, bearer);
     }
 
-    /**
-     * Actualiza una comida existente si pertenece al usuario.
-     */
     public Optional<Meal> updateMeal(UUID userId, UUID mealId, Meal updated,
                                      List<Integer> categoryIds, List<String> categoryNames,
                                      String bearer) {
@@ -50,14 +43,12 @@ public class MealService {
             existing.setCarbsG(updated.getCarbsG());
             existing.setFatG(updated.getFatG());
             existing.setLoggedAt(updated.getLoggedAt());
-            existing.setNote(updated.getNote());
+            // Si tu dominio tiene 'note', vuelve a habilitar:
+            // existing.setNote(updated.getNote());
             return mealRepository.update(existing, categoryIds, categoryNames, bearer);
         });
     }
 
-    /**
-     * Elimina una comida si pertenece al usuario autenticado.
-     */
     public void deleteMeal(UUID userId, UUID mealId, String bearer) {
         mealRepository.findById(mealId, bearer).ifPresent(meal -> {
             if (meal.getUserId().equals(userId)) {
@@ -68,55 +59,51 @@ public class MealService {
         });
     }
 
-    /**
-     * Obtiene todas las comidas de un usuario para una fecha específica.
-     */
     public List<Meal> getMealsByDate(UUID userId, LocalDate date, String bearer) {
+        if (date == null) {
+            throw new IllegalArgumentException("date no puede ser null. Usa el método de rango.");
+        }
         return mealRepository.findByUserAndDate(userId, date, bearer);
     }
 
-    /**
-     * Devuelve todas las categorías de comidas.
-     */
     public List<MealCategory> getCategories(String bearer) {
         return mealRepository.findAllCategories(bearer);
     }
 
-    // ========================= MÉTODO NUEVO =========================
-    /**
-     * Obtiene un desglose de comidas por categoría, con conteo y calorías totales.
-     * Ahora con rango de fechas real.
-     * @param bearer token de autorización
-     * @param from fecha inicial opcional (YYYY-MM-DD)
-     * @param to fecha final opcional (YYYY-MM-DD)
-     * @return lista de objetos FoodCategoryBreakdownResponse con resumen por categoría
-     */
-    public List<FoodCategoryBreakdownResponse> getCategoryBreakdown(String bearer, LocalDate from, LocalDate to) {
-        // TODO: reemplazar null por userId real extraído del JWT si lo tienes
-        UUID userId = null;
+    public List<FoodCategoryBreakdownResponse> getCategoryBreakdown(
+            UUID userId, String bearer, LocalDate from, LocalDate to) {
 
-        List<Meal> meals;
-        if (from != null && to != null) {
-            // Llama a tu nuevo método en el repositorio (añadirlo allí)
-            meals = mealRepository.findByUserAndDateRange(userId, from, to, bearer);
-        } else {
-            meals = mealRepository.findByUserAndDate(userId, null, bearer);
+        if (userId == null) throw new IllegalArgumentException("userId no puede ser null");
+
+        // Normaliza rango
+        LocalDate effFrom = from, effTo = to;
+        if (effFrom == null && effTo == null) {
+            LocalDate today = LocalDate.now(java.time.ZoneOffset.UTC);
+            effFrom = today; effTo = today;
+        } else if (effFrom != null && effTo == null) {
+            effTo = effFrom;
+        } else if (effFrom == null) { // effTo != null
+            effFrom = effTo;
         }
+
+        // SIEMPRE rango + userId (para cumplir RLS)
+        List<Meal> meals = mealRepository.findByUserAndDateRange(userId, effFrom, effTo, bearer);
 
         Map<Integer, FoodCategoryBreakdownResponse> map = new HashMap<>();
         for (Meal meal : meals) {
-            if (meal.getCategories() == null) continue;
+            if (meal == null || meal.getCategories() == null) continue;
+            int kcals = meal.getCalories() == null ? 0 : meal.getCalories();
             for (MealCategory cat : meal.getCategories()) {
-                FoodCategoryBreakdownResponse entry = map.getOrDefault(cat.getId(), new FoodCategoryBreakdownResponse());
-                entry.setCategoryId(cat.getId());
-                entry.setName(cat.getName());
-                entry.setCount((entry.getCount() == null ? 0 : entry.getCount()) + 1);
-                entry.setCalories((entry.getCalories() == null ? 0 : entry.getCalories()) + (meal.getCalories() == null ? 0 : meal.getCalories()));
-                map.put(cat.getId(), entry);
+                FoodCategoryBreakdownResponse e = map.getOrDefault(cat.getId(), new FoodCategoryBreakdownResponse());
+                e.setCategoryId(cat.getId());
+                e.setName(cat.getName());
+                e.setCount((e.getCount() == null ? 0 : e.getCount()) + 1);
+                e.setCalories((e.getCalories() == null ? 0 : e.getCalories()) + kcals);
+                map.put(cat.getId(), e);
             }
         }
-
         return new ArrayList<>(map.values());
     }
-    // ========================= FIN MÉTODO NUEVO =========================
+
 }
+
