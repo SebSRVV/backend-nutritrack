@@ -11,21 +11,32 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Servicio encargado de la lógica de negocio relacionada con las comidas (Meals).
+ * Se comunica con el repositorio de datos para registrar, actualizar o eliminar comidas.
+ */
 @Service
 public class MealService {
 
     private final MealRepository mealRepository;
 
+    // Inyección de dependencia del repositorio
     public MealService(MealRepository mealRepository) {
         this.mealRepository = mealRepository;
     }
 
+    /**
+     * Registra una nueva comida en la base de datos.
+     */
     public Meal registerMeal(Meal meal, List<Integer> categoryIds, List<String> categoryNames, String bearer) {
-        meal.setId(null); // deja que lo genere la BD si quieres
+        meal.setId(null); // deja que la BD genere el ID
         meal.setCreatedAt(Instant.now());
         return mealRepository.insert(meal, categoryIds, categoryNames, bearer);
     }
 
+    /**
+     * Actualiza una comida existente si pertenece al usuario.
+     */
     public Optional<Meal> updateMeal(UUID userId, UUID mealId, Meal updated,
                                      List<Integer> categoryIds, List<String> categoryNames,
                                      String bearer) {
@@ -45,6 +56,9 @@ public class MealService {
         });
     }
 
+    /**
+     * Elimina una comida si pertenece al usuario autenticado.
+     */
     public void deleteMeal(UUID userId, UUID mealId, String bearer) {
         mealRepository.findById(mealId, bearer).ifPresent(meal -> {
             if (meal.getUserId().equals(userId)) {
@@ -55,10 +69,16 @@ public class MealService {
         });
     }
 
+    /**
+     * Obtiene todas las comidas de un usuario para una fecha específica.
+     */
     public List<Meal> getMealsByDate(UUID userId, LocalDate date, String bearer) {
         return mealRepository.findByUserAndDate(userId, date, bearer);
     }
 
+    /**
+     * Devuelve todas las categorías de comidas.
+     */
     public List<MealCategory> getCategories(String bearer) {
         return mealRepository.findAllCategories(bearer);
     }
