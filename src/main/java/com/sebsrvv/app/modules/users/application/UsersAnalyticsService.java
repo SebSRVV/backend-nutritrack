@@ -1,11 +1,9 @@
 // src/main/java/com/sebsrvv/app/modules/users/application/UsersAnalyticsService.java
 package com.sebsrvv.app.modules.users.application;
 
-
-import com.sebsrvv.app.modules.users.web.dto.GoalsWeeklyItem;
-import org.springframework.core.ParameterizedTypeReference;
 import com.sebsrvv.app.modules.users.web.dto.FoodByCategoryRequest;
 import com.sebsrvv.app.modules.users.web.dto.FoodByCategoryResponse;
+import com.sebsrvv.app.modules.users.web.dto.GoalsWeeklyItem;
 import com.sebsrvv.app.modules.users.web.dto.IntakeVsGoalRequest;
 import com.sebsrvv.app.modules.users.web.dto.IntakeVsGoalResponse;
 import com.sebsrvv.app.supabase.SupabaseDataClient;
@@ -29,29 +27,34 @@ public class UsersAnalyticsService {
     }
 
     /* ===================== goals-weekly ===================== */
-    public Mono<java.util.List<GoalsWeeklyItem>> goalsWeekly(UUID userId,
-                                                             String weekStart,
-                                                             String authHeader) {
-        java.util.Map<String, Object> payload = java.util.Map.of(
+    public Mono<List<GoalsWeeklyItem>> goalsWeekly(UUID userId,
+                                                   String weekStart,
+                                                   String authHeader) {
+        Map<String, Object> payload = Map.of(
                 "p_user_id",  userId.toString(),
                 "week_start", weekStart
         );
 
-        Mono<java.util.List<GoalWeeklyRow>> call = (authHeader != null && !authHeader.isBlank())
-                ? supabase.callRpc("goals_weekly", payload, authHeader,
-                new ParameterizedTypeReference<java.util.List<GoalWeeklyRow>>() {})
-                : supabase.callRpcAsServiceRole("goals_weekly", payload,
-                new ParameterizedTypeReference<java.util.List<GoalWeeklyRow>>() {});
+        Mono<List<GoalWeeklyRow>> call = (authHeader != null && !authHeader.isBlank())
+                ? supabase.rpcWithAuth(
+                "goals_weekly",
+                payload,
+                authHeader,
+                new ParameterizedTypeReference<List<GoalWeeklyRow>>() {})
+                : supabase.rpcAsServiceRole(
+                "goals_weekly",
+                payload,
+                new ParameterizedTypeReference<List<GoalWeeklyRow>>() {});
 
         return call.map(rows -> {
-            java.util.List<GoalsWeeklyItem> out = new java.util.ArrayList<>();
-            for (GoalWeeklyRow r : rows) {
+            List<GoalsWeeklyItem> out = new ArrayList<>();
+            for (GoalWeeklyRow r : nz(rows)) {
                 GoalsWeeklyItem it = new GoalsWeeklyItem();
                 it.goalId = r.goalId;
                 it.goalName = r.goalName;
-                it.weeklyTarget = r.weeklyTarget != null ? r.weeklyTarget : 0;
-                it.completedThisWeek = r.completedThisWeek != null ? r.completedThisWeek : 0;
-                it.progressPercent = r.progressPercent != null ? r.progressPercent : 0.0;
+                it.weeklyTarget = nzi(r.weeklyTarget);
+                it.completedThisWeek = nzi(r.completedThisWeek);
+                it.progressPercent = nz(r.progressPercent);
                 out.add(it);
             }
             return out;
@@ -71,12 +74,17 @@ public class UsersAnalyticsService {
         );
 
         Mono<List<FoodRow>> call = (authHeader != null && !authHeader.isBlank())
-                ? supabase.callRpc("food_by_category", payload, authHeader,
+                ? supabase.rpcWithAuth(
+                "food_by_category",
+                payload,
+                authHeader,
                 new ParameterizedTypeReference<List<FoodRow>>() {})
-                : supabase.callRpcAsServiceRole("food_by_category", payload,
+                : supabase.rpcAsServiceRole(
+                "food_by_category",
+                payload,
                 new ParameterizedTypeReference<List<FoodRow>>() {});
 
-        return call.map(rows -> mapToResponse(rows, req));
+        return call.map(rows -> mapToResponse(nz(rows), req));
     }
 
     private FoodByCategoryResponse mapToResponse(List<FoodRow> rows, FoodByCategoryRequest req) {
@@ -136,14 +144,6 @@ public class UsersAnalyticsService {
         return res;
     }
 
-    private static BigDecimal nz(BigDecimal v) { return v != null ? v : BigDecimal.ZERO; }
-
-    private static int safeToInt(long v) {
-        if (v > Integer.MAX_VALUE) return Integer.MAX_VALUE;
-        if (v < Integer.MIN_VALUE) return Integer.MIN_VALUE;
-        return (int) v;
-    }
-
     /* ===================== intake-vs-goal ===================== */
 
     public Mono<IntakeVsGoalResponse> intakeVsGoal(UUID userId,
@@ -157,15 +157,22 @@ public class UsersAnalyticsService {
         );
 
         Mono<List<IntakeRow>> call = (authHeader != null && !authHeader.isBlank())
-                ? supabase.callRpc("intake_vs_goal", payload, authHeader,
+                ? supabase.rpcWithAuth(
+                "intake_vs_goal",
+                payload,
+                authHeader,
                 new ParameterizedTypeReference<List<IntakeRow>>() {})
-                : supabase.callRpcAsServiceRole("intake_vs_goal", payload,
+                : supabase.rpcAsServiceRole(
+                "intake_vs_goal",
+                payload,
                 new ParameterizedTypeReference<List<IntakeRow>>() {});
 
         return call.map(rows -> {
+            List<IntakeRow> list = nz(rows);
+
             IntakeVsGoalResponse res = new IntakeVsGoalResponse();
 
-            int goal = rows.stream()
+            int goal = list.stream()
                     .map(r -> r.goalKcal != null ? r.goalKcal : 0)
                     .findFirst().orElse(0);
             res.goalKcal = goal;
@@ -177,7 +184,7 @@ public class UsersAnalyticsService {
             long sumDelta = 0;
             int within = 0;
 
-            for (IntakeRow r : rows) {
+            for (IntakeRow r : list) {
                 IntakeVsGoalResponse.Day d = new IntakeVsGoalResponse.Day();
                 d.date = r.logDate != null ? r.logDate.format(ISO) : "";
                 int cals = safeToInt(r.calories != null ? r.calories : 0L);
@@ -202,5 +209,53 @@ public class UsersAnalyticsService {
             res.summary = s;
             return res;
         });
+    }
+
+    /* ===================== helpers ===================== */
+
+    @SuppressWarnings("unchecked")
+    private static <T> List<T> nz(List<T> v) {
+        return v != null ? v : List.of();
+    }
+
+    private static BigDecimal nz(BigDecimal v) { return v != null ? v : BigDecimal.ZERO; }
+    private static Double nz(Double v) { return v != null ? v : 0.0; }
+    private static int nzi(Integer v) { return v != null ? v : 0; }
+
+    private static int safeToInt(long v) {
+        if (v > Integer.MAX_VALUE) return Integer.MAX_VALUE;
+        if (v < Integer.MIN_VALUE) return Integer.MIN_VALUE;
+        return (int) v;
+    }
+
+
+    /* ===================== row mappers (RPC results) ===================== */
+
+    /** Fila devuelta por RPC goals_weekly */
+    public static class GoalWeeklyRow {
+        public UUID goalId;
+        public String goalName;
+        public Integer weeklyTarget;
+        public Integer completedThisWeek;
+        public Double progressPercent;
+    }
+
+    /** Fila devuelta por RPC food_by_category */
+    public static class FoodRow {
+        public Integer categoryId;
+        public String categoryName;
+        public LocalDate periodStart;    // date bucket (day/week/month según RPC)
+        public Long totalCalories;
+        public Long itemsCount;
+        public BigDecimal totalProteinG;
+        public BigDecimal totalCarbsG;
+        public BigDecimal totalFatG;
+    }
+
+    /** Fila devuelta por RPC intake_vs_goal */
+    public static class IntakeRow {
+        public LocalDate logDate;
+        public Long calories;
+        public Integer goalKcal;
     }
 }
