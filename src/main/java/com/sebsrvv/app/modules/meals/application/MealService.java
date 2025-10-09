@@ -3,13 +3,12 @@ package com.sebsrvv.app.modules.meals.application;
 import com.sebsrvv.app.modules.meals.domain.Meal;
 import com.sebsrvv.app.modules.meals.domain.MealCategory;
 import com.sebsrvv.app.modules.meals.domain.MealRepository;
+import com.sebsrvv.app.modules.meals.web.dto.FoodCategoryBreakdownResponse;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Servicio encargado de la lógica de negocio relacionada con las comidas (Meals).
@@ -82,4 +81,42 @@ public class MealService {
     public List<MealCategory> getCategories(String bearer) {
         return mealRepository.findAllCategories(bearer);
     }
+
+    // ========================= MÉTODO NUEVO =========================
+    /**
+     * Obtiene un desglose de comidas por categoría, con conteo y calorías totales.
+     * Ahora con rango de fechas real.
+     * @param bearer token de autorización
+     * @param from fecha inicial opcional (YYYY-MM-DD)
+     * @param to fecha final opcional (YYYY-MM-DD)
+     * @return lista de objetos FoodCategoryBreakdownResponse con resumen por categoría
+     */
+    public List<FoodCategoryBreakdownResponse> getCategoryBreakdown(String bearer, LocalDate from, LocalDate to) {
+        // TODO: reemplazar null por userId real extraído del JWT si lo tienes
+        UUID userId = null;
+
+        List<Meal> meals;
+        if (from != null && to != null) {
+            // Llama a tu nuevo método en el repositorio (añadirlo allí)
+            meals = mealRepository.findByUserAndDateRange(userId, from, to, bearer);
+        } else {
+            meals = mealRepository.findByUserAndDate(userId, null, bearer);
+        }
+
+        Map<Integer, FoodCategoryBreakdownResponse> map = new HashMap<>();
+        for (Meal meal : meals) {
+            if (meal.getCategories() == null) continue;
+            for (MealCategory cat : meal.getCategories()) {
+                FoodCategoryBreakdownResponse entry = map.getOrDefault(cat.getId(), new FoodCategoryBreakdownResponse());
+                entry.setCategoryId(cat.getId());
+                entry.setName(cat.getName());
+                entry.setCount((entry.getCount() == null ? 0 : entry.getCount()) + 1);
+                entry.setCalories((entry.getCalories() == null ? 0 : entry.getCalories()) + (meal.getCalories() == null ? 0 : meal.getCalories()));
+                map.put(cat.getId(), entry);
+            }
+        }
+
+        return new ArrayList<>(map.values());
+    }
+    // ========================= FIN MÉTODO NUEVO =========================
 }
