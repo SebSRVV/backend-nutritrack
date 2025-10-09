@@ -29,10 +29,7 @@ public class SupabaseMealRepository implements MealRepository {
     // ---------- INSERT ----------
     @Override
     public Meal insert(Meal meal, List<Integer> categoryIds, List<String> categoryNames, String bearer) {
-        // Convierte el objeto Meal en un mapa (clave-valor) compatible con Supabase
         Map<String, Object> row = toMealRow(meal);
-
-        // Inserta el meal en la tabla meal_logs usando autenticación
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> inserted =
                 (List<Map<String, Object>>) data.insertWithAuth("meal_logs", row, bearer).block();
@@ -41,18 +38,14 @@ public class SupabaseMealRepository implements MealRepository {
             throw new IllegalStateException("No se insertó meal_logs");
         }
 
-        // Obtiene el ID generado
-        Map<String, Object> mealRow = inserted.get(0);
-        UUID mealId = UUID.fromString(String.valueOf(mealRow.get("id")));
+        UUID mealId = UUID.fromString(String.valueOf(inserted.get(0).get("id")));
 
-        // Resolver categorías: ids existentes + crear por nombre si vienen
         List<Integer> allCatIds = new ArrayList<>();
         if (categoryIds != null) allCatIds.addAll(categoryIds);
         if (categoryNames != null && !categoryNames.isEmpty()) {
             allCatIds.addAll(upsertCategoriesByName(categoryNames, bearer));
         }
 
-        // Vincula cada categoría con el meal insertado
         if (!allCatIds.isEmpty()) {
             for (Integer catId : allCatIds.stream().distinct().collect(Collectors.toList())) {
                 Map<String, Object> link = new HashMap<>();
@@ -62,7 +55,6 @@ public class SupabaseMealRepository implements MealRepository {
             }
         }
 
-        // Retorna el meal completo con categorías
         return findById(mealId, bearer).orElseThrow();
     }
 
@@ -70,22 +62,17 @@ public class SupabaseMealRepository implements MealRepository {
     @Override
     public Meal update(Meal meal, List<Integer> categoryIds, List<String> categoryNames, String bearer) {
         Map<String, Object> row = toMealRow(meal);
-        row.remove("id"); // el id no se envía en PATCH
-
-        // Actualiza el registro en Supabase usando su ID
+        row.remove("id");
         data.patchWithAuth("meal_logs", "id=eq." + meal.getId(), row, bearer).block();
 
-        // Limpia las categorías anteriores
         data.deleteWithAuth("meal_log_categories", "meal_log_id=eq." + meal.getId(), bearer).block();
 
-        // Vuelve a asociar las nuevas categorías
         List<Integer> allCatIds = new ArrayList<>();
         if (categoryIds != null) allCatIds.addAll(categoryIds);
         if (categoryNames != null && !categoryNames.isEmpty()) {
             allCatIds.addAll(upsertCategoriesByName(categoryNames, bearer));
         }
 
-        // Inserta relaciones nuevas
         if (!allCatIds.isEmpty()) {
             for (Integer catId : allCatIds.stream().distinct().collect(Collectors.toList())) {
                 Map<String, Object> link = new HashMap<>();
@@ -101,7 +88,6 @@ public class SupabaseMealRepository implements MealRepository {
     // ---------- SELECT by ID ----------
     @Override
     public Optional<Meal> findById(UUID mealId, String bearer) {
-        // Consulta por ID e incluye las categorías asociadas
         String qp = String.join("&",
                 "id=eq." + mealId,
                 "select=*,meal_log_categories(*,food_categories(*))",
@@ -119,7 +105,6 @@ public class SupabaseMealRepository implements MealRepository {
     // ---------- DELETE ----------
     @Override
     public void delete(UUID mealId, String bearer) {
-        // Borra los vínculos de categorías y luego el meal
         data.deleteWithAuth("meal_log_categories", "meal_log_id=eq." + mealId, bearer).block();
         data.deleteWithAuth("meal_logs", "id=eq." + mealId, bearer).block();
     }
@@ -127,11 +112,9 @@ public class SupabaseMealRepository implements MealRepository {
     // ---------- SELECT by user + date ----------
     @Override
     public List<Meal> findByUserAndDate(UUID userId, LocalDate date, String bearer) {
-        // Define el rango horario completo del día en UTC
         String from = date.atStartOfDay().atOffset(ZoneOffset.UTC).toString();
         String to   = date.atTime(23,59,59).atOffset(ZoneOffset.UTC).toString();
 
-        // Consulta todos los meals del usuario en esa fecha
         String qp = String.join("&",
                 "user_id=eq." + userId,
                 "logged_at=gte." + from,
@@ -152,10 +135,40 @@ public class SupabaseMealRepository implements MealRepository {
         return result;
     }
 
+    // ===================== NUEVO MÉTODO IMPLEMENTADO =====================
+    /**
+     * Implementación de findByUserAndDateRange para cumplir la interfaz.
+     * Permite filtrar meals por usuario y rango de fechas.
+     */
+    @Override
+    public List<Meal> findByUserAndDateRange(UUID userId, LocalDate from, LocalDate to, String bearer) {
+        String fromStr = from.atStartOfDay().atOffset(ZoneOffset.UTC).toString();
+        String toStr = to.atTime(23, 59, 59).atOffset(ZoneOffset.UTC).toString();
+
+        String qp = String.join("&",
+                (userId != null ? "user_id=eq." + userId : ""),
+                "logged_at=gte." + fromStr,
+                "logged_at=lte." + toStr,
+                "select=*,meal_log_categories(*,food_categories(*))",
+                "order=logged_at.asc"
+        );
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> rows =
+                (List<Map<String, Object>>) data.selectWithAuth("meal_logs", qp, bearer).block();
+
+        if (rows == null) return List.of();
+        List<Meal> result = new ArrayList<>();
+        for (Map<String, Object> r : rows) {
+            result.add(mapMeal(r));
+        }
+        return result;
+    }
+    // ===================== FIN DEL NUEVO MÉTODO =====================
+
     // ---------- ALL categories ----------
     @Override
     public List<MealCategory> findAllCategories(String bearer) {
-        // Recupera todas las categorías disponibles
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> rows =
                 (List<Map<String, Object>>) data.selectWithAuth("food_categories", null, bearer).block();
@@ -173,8 +186,6 @@ public class SupabaseMealRepository implements MealRepository {
     }
 
     // ---------- Helpers ----------
-
-    // Convierte el objeto Meal en un mapa (para enviar a Supabase)
     private Map<String, Object> toMealRow(Meal m) {
         Map<String, Object> row = new HashMap<>();
         if (m.getId() != null) row.put("id", m.getId());
@@ -189,7 +200,6 @@ public class SupabaseMealRepository implements MealRepository {
         return row;
     }
 
-    // Mapea una fila del JSON de Supabase a un objeto Meal
     private Meal mapMeal(Map<String, Object> r) {
         Meal m = new Meal();
         m.setId(UUID.fromString(String.valueOf(r.get("id"))));
@@ -203,7 +213,6 @@ public class SupabaseMealRepository implements MealRepository {
         m.setLoggedAt(r.get("logged_at") != null ? Instant.parse(String.valueOf(r.get("logged_at"))) : null);
         m.setCreatedAt(r.get("created_at") != null ? Instant.parse(String.valueOf(r.get("created_at"))) : null);
 
-        // Mapea las categorías asociadas (si existen)
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> links = (List<Map<String, Object>>) r.get("meal_log_categories");
         if (links != null) {
@@ -224,25 +233,21 @@ public class SupabaseMealRepository implements MealRepository {
         return m;
     }
 
-    // Convierte valores genéricos a double
     private double asDouble(Object o) {
         if (o == null) return 0d;
         if (o instanceof Number n) return n.doubleValue();
         return Double.parseDouble(String.valueOf(o));
     }
 
-    // Convierte valores genéricos a int
     private int asInt(Object o) {
         if (o == null) return 0;
         if (o instanceof Number n) return n.intValue();
         return Integer.parseInt(String.valueOf(o));
     }
 
-    // Crea o reutiliza categorías por nombre, respetando RLS
     private List<Integer> upsertCategoriesByName(List<String> names, String bearer) {
         List<Integer> ids = new ArrayList<>();
         for (String name : names) {
-            // Buscar categoría existente
             String qp = "name=eq." + encodeEquals(name);
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> rows =
@@ -252,7 +257,6 @@ public class SupabaseMealRepository implements MealRepository {
                 continue;
             }
 
-            // Crear nueva si no existe
             Map<String, Object> row = new HashMap<>();
             row.put("name", name);
             @SuppressWarnings("unchecked")
@@ -265,7 +269,6 @@ public class SupabaseMealRepository implements MealRepository {
         return ids;
     }
 
-    // Escapa valores para consultas seguras (manejo de comillas y espacios)
     private String encodeEquals(String value) {
         if (value == null) return "";
         String escaped = value.replace("\"", "\\\"");
