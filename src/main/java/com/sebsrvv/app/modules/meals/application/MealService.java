@@ -12,7 +12,7 @@ import java.util.*;
 
 /**
  * Servicio encargado de la lógica de negocio relacionada con las comidas (Meals).
- * Se comunica con el repositorio de datos para registrar, categorias, actualizar o eliminar comidas.
+ * Se comunica con el repositorio de datos para registrar, actualizar o eliminar comidas.
  */
 @Service
 public class MealService {
@@ -82,75 +82,41 @@ public class MealService {
         return mealRepository.findAllCategories(bearer);
     }
 
-
+    // ========================= MÉTODO NUEVO =========================
     /**
      * Obtiene un desglose de comidas por categoría, con conteo y calorías totales.
-     * Aplica un filtro por rango de fechas directamente desde el servicio.
-     *
+     * Ahora con rango de fechas real.
      * @param bearer token de autorización
-     * @param from   fecha inicial opcional (YYYY-MM-DD)
-     * @param to     fecha final opcional (YYYY-MM-DD)
+     * @param from fecha inicial opcional (YYYY-MM-DD)
+     * @param to fecha final opcional (YYYY-MM-DD)
      * @return lista de objetos FoodCategoryBreakdownResponse con resumen por categoría
      */
     public List<FoodCategoryBreakdownResponse> getCategoryBreakdown(String bearer, LocalDate from, LocalDate to) {
-        // TODO: reemplazar null por el userId real extraído del JWT si está disponible
+        // TODO: reemplazar null por userId real extraído del JWT si lo tienes
         UUID userId = null;
 
-        // Obtiene todas las comidas del usuario (sin filtrar por fecha en el repositorio)
-        // Si `date` es null, el repositorio debe devolver todas las comidas del usuario
-        List<Meal> allMeals = mealRepository.findByUserAndDate(userId, null, bearer);
-
-        // Lista donde se guardarán solo las comidas dentro del rango de fechas especificado
-        List<Meal> filteredMeals = new ArrayList<>();
-
-        for (Meal meal : allMeals) {
-            // Ignora comidas que no tengan fecha registrada
-            if (meal.getLoggedAt() == null) continue;
-
-            // Convierte la fecha y hora de la comida (Instant) a LocalDate para poder compararla
-            LocalDate mealDate = meal.getLoggedAt().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
-
-            // Verifica si la comida está dentro del rango de fechas solicitado (incluyendo límites)
-            boolean isAfterOrEqualFrom = (from == null) || (!mealDate.isBefore(from)); // >= from
-            boolean isBeforeOrEqualTo = (to == null) || (!mealDate.isAfter(to));       // <= to
-
-            // Si cumple con ambas condiciones, se incluye en la lista filtrada
-            if (isAfterOrEqualFrom && isBeforeOrEqualTo) {
-                filteredMeals.add(meal);
-            }
+        List<Meal> meals;
+        if (from != null && to != null) {
+            // Llama a tu nuevo método en el repositorio (añadirlo allí)
+            meals = mealRepository.findByUserAndDateRange(userId, from, to, bearer);
+        } else {
+            meals = mealRepository.findByUserAndDate(userId, null, bearer);
         }
 
-        // Mapa temporal para agrupar los datos por categoría
         Map<Integer, FoodCategoryBreakdownResponse> map = new HashMap<>();
-
-        // Recorre cada comida filtrada
-        for (Meal meal : filteredMeals) {
-            // Ignora comidas sin categorías asociadas
+        for (Meal meal : meals) {
             if (meal.getCategories() == null) continue;
-
-            // Por cada categoría de la comida, actualiza el resumen acumulado
             for (MealCategory cat : meal.getCategories()) {
-                // Obtiene el objeto resumen actual o crea uno nuevo si aún no existe
                 FoodCategoryBreakdownResponse entry = map.getOrDefault(cat.getId(), new FoodCategoryBreakdownResponse());
-
-                // Establece los datos de la categoría
                 entry.setCategoryId(cat.getId());
                 entry.setName(cat.getName());
-
-                // Incrementa el contador de comidas en esa categoría
                 entry.setCount((entry.getCount() == null ? 0 : entry.getCount()) + 1);
-
-                // Suma las calorías de la comida a esa categoría (evita nulls)
-                entry.setCalories((entry.getCalories() == null ? 0 : entry.getCalories())
-                        + (meal.getCalories() == null ? 0 : meal.getCalories()));
-
-                // Guarda el resultado actualizado en el mapa
+                entry.setCalories((entry.getCalories() == null ? 0 : entry.getCalories()) + (meal.getCalories() == null ? 0 : meal.getCalories()));
                 map.put(cat.getId(), entry);
             }
         }
 
-        // Convierte el mapa de resultados a una lista para devolverla como respuesta
         return new ArrayList<>(map.values());
     }
-
+    // ========================= FIN MÉTODO NUEVO =========================
 }
