@@ -1,4 +1,3 @@
-// com/sebsrvv/app/modules/meals/infrastructure/SupabaseMealRepository.java
 package com.sebsrvv.app.modules.meals.infrastructure;
 
 import com.sebsrvv.app.modules.meals.domain.Meal;
@@ -14,6 +13,10 @@ import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Implementación concreta de MealRepository que interactúa con Supabase.
+ * Se encarga de CRUD de comidas (meals) y sus categorías.
+ */
 @Repository
 public class SupabaseMealRepository implements MealRepository {
 
@@ -26,8 +29,10 @@ public class SupabaseMealRepository implements MealRepository {
     // ---------- INSERT ----------
     @Override
     public Meal insert(Meal meal, List<Integer> categoryIds, List<String> categoryNames, String bearer) {
+        // Convierte el objeto Meal en un mapa (clave-valor) compatible con Supabase
         Map<String, Object> row = toMealRow(meal);
 
+        // Inserta el meal en la tabla meal_logs usando autenticación
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> inserted =
                 (List<Map<String, Object>>) data.insertWithAuth("meal_logs", row, bearer).block();
@@ -36,6 +41,7 @@ public class SupabaseMealRepository implements MealRepository {
             throw new IllegalStateException("No se insertó meal_logs");
         }
 
+        // Obtiene el ID generado
         Map<String, Object> mealRow = inserted.get(0);
         UUID mealId = UUID.fromString(String.valueOf(mealRow.get("id")));
 
@@ -46,7 +52,7 @@ public class SupabaseMealRepository implements MealRepository {
             allCatIds.addAll(upsertCategoriesByName(categoryNames, bearer));
         }
 
-        // Vincular en meal_log_categories
+        // Vincula cada categoría con el meal insertado
         if (!allCatIds.isEmpty()) {
             for (Integer catId : allCatIds.stream().distinct().collect(Collectors.toList())) {
                 Map<String, Object> link = new HashMap<>();
@@ -56,6 +62,7 @@ public class SupabaseMealRepository implements MealRepository {
             }
         }
 
+        // Retorna el meal completo con categorías
         return findById(mealId, bearer).orElseThrow();
     }
 
@@ -63,21 +70,22 @@ public class SupabaseMealRepository implements MealRepository {
     @Override
     public Meal update(Meal meal, List<Integer> categoryIds, List<String> categoryNames, String bearer) {
         Map<String, Object> row = toMealRow(meal);
-        // Para PATCH no enviamos el id en el body
-        row.remove("id");
+        row.remove("id"); // el id no se envía en PATCH
 
-        // PATCH con RLS
+        // Actualiza el registro en Supabase usando su ID
         data.patchWithAuth("meal_logs", "id=eq." + meal.getId(), row, bearer).block();
 
-        // Reemplazar categorías: borrar links y volver a insertar
+        // Limpia las categorías anteriores
         data.deleteWithAuth("meal_log_categories", "meal_log_id=eq." + meal.getId(), bearer).block();
 
+        // Vuelve a asociar las nuevas categorías
         List<Integer> allCatIds = new ArrayList<>();
         if (categoryIds != null) allCatIds.addAll(categoryIds);
         if (categoryNames != null && !categoryNames.isEmpty()) {
             allCatIds.addAll(upsertCategoriesByName(categoryNames, bearer));
         }
 
+        // Inserta relaciones nuevas
         if (!allCatIds.isEmpty()) {
             for (Integer catId : allCatIds.stream().distinct().collect(Collectors.toList())) {
                 Map<String, Object> link = new HashMap<>();
@@ -93,6 +101,7 @@ public class SupabaseMealRepository implements MealRepository {
     // ---------- SELECT by ID ----------
     @Override
     public Optional<Meal> findById(UUID mealId, String bearer) {
+        // Consulta por ID e incluye las categorías asociadas
         String qp = String.join("&",
                 "id=eq." + mealId,
                 "select=*,meal_log_categories(*,food_categories(*))",
@@ -110,6 +119,7 @@ public class SupabaseMealRepository implements MealRepository {
     // ---------- DELETE ----------
     @Override
     public void delete(UUID mealId, String bearer) {
+        // Borra los vínculos de categorías y luego el meal
         data.deleteWithAuth("meal_log_categories", "meal_log_id=eq." + mealId, bearer).block();
         data.deleteWithAuth("meal_logs", "id=eq." + mealId, bearer).block();
     }
@@ -117,9 +127,11 @@ public class SupabaseMealRepository implements MealRepository {
     // ---------- SELECT by user + date ----------
     @Override
     public List<Meal> findByUserAndDate(UUID userId, LocalDate date, String bearer) {
+        // Define el rango horario completo del día en UTC
         String from = date.atStartOfDay().atOffset(ZoneOffset.UTC).toString();
         String to   = date.atTime(23,59,59).atOffset(ZoneOffset.UTC).toString();
 
+        // Consulta todos los meals del usuario en esa fecha
         String qp = String.join("&",
                 "user_id=eq." + userId,
                 "logged_at=gte." + from,
@@ -143,6 +155,7 @@ public class SupabaseMealRepository implements MealRepository {
     // ---------- ALL categories ----------
     @Override
     public List<MealCategory> findAllCategories(String bearer) {
+        // Recupera todas las categorías disponibles
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> rows =
                 (List<Map<String, Object>>) data.selectWithAuth("food_categories", null, bearer).block();
@@ -161,6 +174,7 @@ public class SupabaseMealRepository implements MealRepository {
 
     // ---------- Helpers ----------
 
+    // Convierte el objeto Meal en un mapa (para enviar a Supabase)
     private Map<String, Object> toMealRow(Meal m) {
         Map<String, Object> row = new HashMap<>();
         if (m.getId() != null) row.put("id", m.getId());
@@ -171,10 +185,11 @@ public class SupabaseMealRepository implements MealRepository {
         row.put("protein_g", m.getProteinG());
         row.put("carbs_g", m.getCarbsG());
         row.put("fat_g", m.getFatG());
-        row.put("logged_at", m.getLoggedAt());  // Instant -> timestamptz
+        row.put("logged_at", m.getLoggedAt());
         return row;
     }
 
+    // Mapea una fila del JSON de Supabase a un objeto Meal
     private Meal mapMeal(Map<String, Object> r) {
         Meal m = new Meal();
         m.setId(UUID.fromString(String.valueOf(r.get("id"))));
@@ -188,6 +203,7 @@ public class SupabaseMealRepository implements MealRepository {
         m.setLoggedAt(r.get("logged_at") != null ? Instant.parse(String.valueOf(r.get("logged_at"))) : null);
         m.setCreatedAt(r.get("created_at") != null ? Instant.parse(String.valueOf(r.get("created_at"))) : null);
 
+        // Mapea las categorías asociadas (si existen)
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> links = (List<Map<String, Object>>) r.get("meal_log_categories");
         if (links != null) {
@@ -208,26 +224,25 @@ public class SupabaseMealRepository implements MealRepository {
         return m;
     }
 
+    // Convierte valores genéricos a double
     private double asDouble(Object o) {
         if (o == null) return 0d;
         if (o instanceof Number n) return n.doubleValue();
         return Double.parseDouble(String.valueOf(o));
     }
 
+    // Convierte valores genéricos a int
     private int asInt(Object o) {
         if (o == null) return 0;
         if (o instanceof Number n) return n.intValue();
         return Integer.parseInt(String.valueOf(o));
     }
 
-    /**
-     * Crea (o encuentra) categorías por nombre respetando RLS.
-     * Estrategia: SELECT por nombre; si no existe -> INSERT con JWT del usuario.
-     */
+    // Crea o reutiliza categorías por nombre, respetando RLS
     private List<Integer> upsertCategoriesByName(List<String> names, String bearer) {
         List<Integer> ids = new ArrayList<>();
         for (String name : names) {
-            // 1) buscar si existe
+            // Buscar categoría existente
             String qp = "name=eq." + encodeEquals(name);
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> rows =
@@ -237,7 +252,7 @@ public class SupabaseMealRepository implements MealRepository {
                 continue;
             }
 
-            // 2) insertar si no existe
+            // Crear nueva si no existe
             Map<String, Object> row = new HashMap<>();
             row.put("name", name);
             @SuppressWarnings("unchecked")
@@ -250,13 +265,9 @@ public class SupabaseMealRepository implements MealRepository {
         return ids;
     }
 
-    /**
-     * Encapsula valores con comillas si tienen espacios o caracteres especiales en filtros eq.
-     * Ej: Protein Shake -> "Protein Shake"
-     */
+    // Escapa valores para consultas seguras (manejo de comillas y espacios)
     private String encodeEquals(String value) {
         if (value == null) return "";
-        // Comillas dobles en PostgREST para literales con espacios o signos
         String escaped = value.replace("\"", "\\\"");
         if (escaped.matches("^[A-Za-z0-9_]+$")) return escaped;
         return "\"" + escaped + "\"";
