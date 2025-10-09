@@ -70,4 +70,17 @@ public interface MealRepository {
      * @return Lista de categorías.
      */
     List<MealCategory> findAllCategories(String bearer);
+
+    // ========================= MÉTODO NUEVO =========================
+    /**
+     * Busca comidas de un usuario entre un rango de fechas.
+     *
+     * @param userId ID del usuario
+     * @param from Fecha inicial
+     * @param to Fecha final
+     * @param bearer Token JWT del usuario autenticado
+     * @return Lista de Meals dentro del rango de fechas
+     */
+    List<Meal> findByUserAndDateRange(UUID userId, LocalDate from, LocalDate to, String bearer);
+    // ========================= FIN MÉTODO NUEVO =========================
 }
