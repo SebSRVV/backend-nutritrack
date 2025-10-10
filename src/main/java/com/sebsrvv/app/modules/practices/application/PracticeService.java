@@ -19,6 +19,7 @@ public class PracticeService {
         this.data = data;
     }
 
+    //Mapa string de variables en PostreSQL
     private static Map<String, Object> toRow(PracticeDto dto) {
         Map<String,Object> m = new HashMap<>();
         if (dto.name() != null) m.put("name", dto.name());
@@ -30,7 +31,6 @@ public class PracticeService {
         if (dto.operator() != null) m.put("operator", dto.operator());
         if (dto.days_per_week() != null) m.put("days_per_week", dto.days_per_week());
         if (dto.is_active() != null) m.put("is_active", dto.is_active());
-        // user_id NO se envía (lo setea trigger con auth.uid())
         return m;
     }
 
@@ -43,7 +43,7 @@ public class PracticeService {
         return m;
     }
 
-    /* ================== PRACTICES ================== */
+    /*Practicas*/
 
     public Mono<List<Map<String,Object>>> listPractices(String authBearer) {
         String qp = "select=*&order=created_at.desc";
@@ -65,7 +65,7 @@ public class PracticeService {
         return data.deleteAuth("practices", "id=eq." + practiceId, authBearer);
     }
 
-    /* ================== ENTRIES ================== */
+    /* Entradas para practicas */
 
     public Mono<List<Map<String,Object>>> listEntries(String practiceId, String fromDate, String authBearer) {
         String qp = "select=*&practice_id=eq." + practiceId +
@@ -98,14 +98,14 @@ public class PracticeService {
                 .map(list -> list.isEmpty() ? Map.of() : (Map<String,Object>) list.get(0));
     }
 
-    /* ================== STATS ================== */
+    /* Estadisticas para practicas */
 
     public Mono<List<Map<String,Object>>> weeklyStats(String authBearer) {
         String qp = "select=practice_id,name,days_per_week,achieved_days_last7,logged_days_last7&order=name.asc";
         return data.selectAuth("practice_weekly_stats", qp, authBearer);
     }
 
-    /* ================== RPC helpers opcionales ================== */
+    /* RPC helpers para la autentificacion con Supabase */
 
     public Mono<Void> markBoolean(String practiceId, String logDate, boolean done, String note, String authBearer) {
         Map<String,Object> payload = Map.of(
