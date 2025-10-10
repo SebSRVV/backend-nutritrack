@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import org.springframework.core.ParameterizedTypeReference;
 
 import java.util.List;
 import java.util.Map;
@@ -48,6 +49,15 @@ public class SupabaseDataClient {
     public Mono<Integer> delete(String table, String queryParams) {
         return rest.delete().uri("/" + table + "?" + queryParams)
                 .retrieve().toBodilessEntity().map(resp -> resp.getStatusCode().value());
+    }
+
+    public Mono<List<Map<String,Object>>> patch(String table, String queryParams, Map<String,Object> fields) {
+        String qp = (queryParams == null || queryParams.isBlank()) ? "" : "?" + queryParams;
+        return rest.patch()
+                .uri("/" + table + qp)
+                .bodyValue(fields)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<List<Map<String,Object>>>() {});
     }
 
     public Mono<List> upsert(String table, Map<String,Object> row) {

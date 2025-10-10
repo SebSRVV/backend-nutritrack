@@ -26,18 +26,21 @@ public class SupabaseGoalDeleteRepository implements GoalDeleteCommandPort {
                     "is_active", false,
                     "updated_at", OffsetDateTime.now().toString()
             );
-            @SuppressWarnings("unchecked")
-            List<Map<String,Object>> rows = (List<Map<String,Object>>)(List<?>)
-                    supa.patch("user_goals", filter, body)
-                            .blockOptional().orElse(Collections.emptyList());
+
+            List<Map<String,Object>> rows = supa.patch("user_goals", filter, body)
+                    .blockOptional()
+                    .orElse(Collections.emptyList());
 
             if (rows.isEmpty()) throw new NoSuchElementException("Goal no encontrado");
-            var r = rows.get(0);
+            Map<String,Object> r = rows.get(0);
             return new DeletedGoal(UUID.fromString((String) r.get("id")), false);
+
         } else {
-            int status = supa.delete("user_goals", filter).block();
-            if (status == null || status < 200 || status >= 300)
-                throw new IllegalStateException("No se pudo eliminar");
+            // Integer (no primitivo) para poder chequear null
+            Integer status = supa.delete("user_goals", filter).block();
+            if (status == null || status < 200 || status >= 300) {
+                throw new IllegalStateException("No se pudo eliminar (status=" + status + ")");
+            }
             return new DeletedGoal(goalId, false);
         }
     }
