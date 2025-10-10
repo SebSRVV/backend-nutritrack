@@ -21,23 +21,22 @@ public class SelectGoalsUseCase {
         this.catalogPort = catalogPort;
     }
 
-    public List<GoalSelection> execute(UUID userId, List<GoalSelectionCommandPort.SelectionCommand> selections) {
+    public List<GoalSelection> execute(UUID userId,
+                                       List<GoalSelectionCommandPort.SelectionCommand> selections,
+                                       String authorization) {
         selections.forEach(s -> {
             if (s.defaultId() == null) throw new IllegalArgumentException("defaultId requerido");
             if (s.active() == null) throw new IllegalArgumentException("active requerido");
         });
 
-        // Traer metadatos (nombre/weeklyTarget) del catálogo
         var meta = catalogPort.getByDefaultIds(
                 selections.stream().map(GoalSelectionCommandPort.SelectionCommand::defaultId).collect(Collectors.toSet())
         );
         if (meta.isEmpty())
             throw new IllegalArgumentException("Ninguno de los defaultId existe en default_goals");
 
-        // Upsert con snapshot de catálogo
-        List<GoalSelection> persisted = selectionPort.upsertSelections(userId, selections);
+        List<GoalSelection> persisted = selectionPort.upsertSelections(userId, selections, authorization); // 👈
 
-        // Rellenar por si algo vino nulo (fallback seguro)
         persisted.forEach(g -> {
             var m = meta.get(g.getDefaultId());
             if (m != null) {

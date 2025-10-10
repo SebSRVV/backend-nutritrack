@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.UUID;
 
 public interface GoalSelectionCommandPort {
-    List<GoalSelection> upsertSelections(UUID userId, List<SelectionCommand> selections);
-
+    List<GoalSelection> upsertSelections(UUID userId, List<SelectionCommand> selections, String authorization);
     record SelectionCommand(Integer defaultId, Boolean active) {}
 }

@@ -4,10 +4,11 @@ package com.sebsrvv.app.modules.goals.web;
 import com.sebsrvv.app.modules.goals.application.UpsertGoalProgressUseCase;
 import com.sebsrvv.app.modules.goals.web.dto.GoalProgressRequest;
 import com.sebsrvv.app.modules.goals.web.dto.GoalProgressResponse;
+import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.UUID;
 
 @RestController
@@ -20,25 +21,31 @@ public class GoalProgressController {
         this.useCase = useCase;
     }
 
-    @PostMapping("/progress")
+    @PostMapping(
+            path = "/progress",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
     public ResponseEntity<GoalProgressResponse> upsert(
-            @PathVariable UUID userId,
+            @PathVariable UUID userId,                     // opcionalmente puedes validar contra el JWT si lo deseas
             @PathVariable UUID goalId,
-            @RequestBody GoalProgressRequest req
+            @Valid @RequestBody GoalProgressRequest req,
+            @RequestHeader(name = "Authorization", required = false) String authorization
     ) {
-        var logDate = LocalDate.parse(req.logDate());
-        var gp = useCase.execute(userId, goalId, logDate, req.value(), req.note());
+        if (authorization == null || authorization.isBlank()) {
+            // El RPC necesita el JWT para resolver auth.uid()
+            return ResponseEntity.status(401).build();
+        }
 
-        var body = new GoalProgressResponse(
-                gp.getId().toString(),
-                gp.getUserId().toString(),
-                gp.getGoalId().toString(),
-                gp.getLogDate().toString(),
-                gp.getValue(),
-                gp.getNote(),
-                gp.getCreatedAt().toString(),
-                gp.getUpdatedAt().toString()
+        var result = useCase.executeViaRpcForwardJwt(
+                authorization,
+                goalId,
+                req.logDate(),
+                req.value(),
+                req.note()
         );
-        return ResponseEntity.ok(body);
+
+        // devolvemos el objeto recibido del RPC
+        return ResponseEntity.ok(result);
     }
 }

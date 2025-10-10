@@ -10,10 +10,10 @@ import java.util.*;
 @Repository
 public class SupabaseGoalCatalogRepository implements GoalCatalogQueryPort {
 
-    private final SupabaseDataClient supa;
+    private final SupabaseDataClient supaClient;
 
-    public SupabaseGoalCatalogRepository(SupabaseDataClient supa) {
-        this.supa = supa;
+    public SupabaseGoalCatalogRepository(SupabaseDataClient supaClient) {
+        this.supaClient = supaClient;
     }
 
     @Override
@@ -25,18 +25,20 @@ public class SupabaseGoalCatalogRepository implements GoalCatalogQueryPort {
         String in = "(" + String.join(",", ids.stream().map(String::valueOf).toList()) + ")";
         String qp = "select=id,goal_name,weekly_target,is_active&id=in." + in + "&is_active=is.true";
 
-        @SuppressWarnings("unchecked")
-        List<Map<String,Object>> list = (List<Map<String,Object>>)(List<?>)
-                supa.select("default_goals", qp).blockOptional().orElse(List.of());
+        List<Map<String,Object>> rows = supaClient
+                .select("default_goals", qp)   // usa overload sin Authorization
+                .blockOptional()
+                .orElseGet(List::of);
 
         Map<Integer, CatalogItem> map = new HashMap<>();
-        for (var r : list) {
-            map.put(((Number) r.get("id")).intValue(),
-                    new CatalogItem(
-                            (String) r.get("goal_name"),
-                            r.get("weekly_target") == null ? null : ((Number) r.get("weekly_target")).intValue()
-                    )
-            );
+        for (var r : rows) {
+            Integer id = ((Number) r.get("id")).intValue();
+            String goalName = (String) r.get("goal_name");
+            Integer weeklyTarget = r.get("weekly_target") == null
+                    ? null
+                    : ((Number) r.get("weekly_target")).intValue();
+
+            map.put(id, new CatalogItem(goalName, weeklyTarget));
         }
         return map;
     }
