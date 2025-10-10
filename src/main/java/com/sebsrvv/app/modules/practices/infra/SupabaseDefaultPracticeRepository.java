@@ -1,4 +1,4 @@
-package com.sebsrvv.app.modules.practices.infrastructure.adapter;
+package com.sebsrvv.app.modules.practices.infra;
 
 import com.sebsrvv.app.modules.practices.domain.model.DefaultPractice;
 import com.sebsrvv.app.modules.practices.domain.port.DefaultPracticeQueryPort;
