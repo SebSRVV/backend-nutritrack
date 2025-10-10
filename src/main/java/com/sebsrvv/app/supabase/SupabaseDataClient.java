@@ -40,6 +40,16 @@ public class SupabaseDataClient {
         return rest.post().uri("/" + table).bodyValue(List.of(row)).retrieve().bodyToMono(List.class);
     }
 
+    public Mono<List> patch(String table, String queryParams, Map<String,Object> fields) {
+        String qp = (queryParams == null || queryParams.isBlank()) ? "" : "?" + queryParams;
+        return rest.patch()
+                .uri("/" + table + qp)
+                .bodyValue(fields)
+                .retrieve()
+                .bodyToMono(List.class);
+    }
+
+
     public Mono<List> select(String table, String queryParams) {
         String qp = (queryParams == null || queryParams.isBlank()) ? "" : "?" + queryParams;
         return rest.get().uri("/" + table + qp).retrieve().bodyToMono(List.class);
