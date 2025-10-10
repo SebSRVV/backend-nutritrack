@@ -15,9 +15,12 @@ import java.util.Map;
 @Service
 public class SupabaseDataClient {
 
+    private static final ParameterizedTypeReference<List<Map<String, Object>>> LIST_OF_MAP =
+            new ParameterizedTypeReference<>() {};
+
     private final WebClient rest;
     private final String anonKey;
-    private final String serviceKey;
+    private final String serviceKey; // para llamadas como service_role
 
     public SupabaseDataClient(WebClient.Builder builder,
                               @Value("${supabase.url}") String baseUrl,
@@ -34,136 +37,160 @@ public class SupabaseDataClient {
                 .build();
     }
 
-    /** Añade Authorization solo si no viene null/blank. */
-    private <T extends WebClient.RequestHeadersSpec<?>> T withAuth(T spec, String authorization) {
-        if (authorization != null && !authorization.isBlank()) {
-            spec.header(HttpHeaders.AUTHORIZATION, authorization);
-        }
-        return spec;
+    /* =========================================================
+       CRUD "público" (sin Authorization). Útiles si no hay RLS.
+       ========================================================= */
+
+    public Mono<List<Map<String,Object>>> insert(String table, Map<String,Object> row) {
+        return rest.post()
+                .uri("/" + table)
+                .bodyValue(List.of(row))
+                .retrieve()
+                .bodyToMono(LIST_OF_MAP);
     }
 
-    // ---------- REST PATCH con/sin AUTH ----------
-    public Mono<List<Map<String, Object>>> patch(String table,
-                                                 String queryParams,
-                                                 Map<String, Object> fields,
-                                                 String authorizationBearer) {
+    public Mono<List<Map<String,Object>>> upsert(String table, Map<String,Object> row) {
+        return rest.post()
+                .uri("/" + table)
+                .header("Prefer","resolution=merge-duplicates,return=representation")
+                .bodyValue(List.of(row))
+                .retrieve()
+                .bodyToMono(LIST_OF_MAP);
+    }
+
+    public Mono<List<Map<String,Object>>> patch(String table, String queryParams, Map<String,Object> fields) {
         String qp = (queryParams == null || queryParams.isBlank()) ? "" : "?" + queryParams;
-        return withAuth(rest.patch().uri("/" + table + qp), authorizationBearer)
+        return rest.patch()
+                .uri("/" + table + qp)
                 .bodyValue(fields)
                 .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+                .bodyToMono(LIST_OF_MAP);
     }
 
-    /** Overload sin Authorization (retro-compatible). */
-    public Mono<List<Map<String, Object>>> patch(String table,
-                                                 String queryParams,
-                                                 Map<String, Object> fields) {
-        return patch(table, queryParams, fields, null);
-    }
-
-    // ---------- REST DELETE con/sin AUTH ----------
-    public Mono<Integer> delete(String table,
-                                String queryParams,
-                                String authorizationBearer) {
+    public Mono<List<Map<String,Object>>> select(String table, String queryParams) {
         String qp = (queryParams == null || queryParams.isBlank()) ? "" : "?" + queryParams;
-        return withAuth(rest.delete().uri("/" + table + qp), authorizationBearer)
+        return rest.get()
+                .uri("/" + table + qp)
+                .retrieve()
+                .bodyToMono(LIST_OF_MAP);
+    }
+
+    public Mono<Integer> delete(String table, String queryParams) {
+        return rest.delete()
+                .uri("/" + table + "?" + queryParams)
                 .retrieve()
                 .toBodilessEntity()
                 .map(resp -> resp.getStatusCode().value());
     }
 
-    /** Overload sin Authorization (retro-compatible). */
-    public Mono<Integer> delete(String table, String queryParams) {
-        return delete(table, queryParams, null);
-    }
+    /* =========================================================
+       CRUD con Authorization (necesario con RLS).
+       Pasa "Bearer <jwt>" en authorizationBearer.
+       ========================================================= */
 
-    // ---------- REST INSERT/UPSERT/SELECT con/sin AUTH ----------
-    public Mono<List<Map<String, Object>>> insert(String table,
-                                                  Map<String, Object> row,
-                                                  String authorizationBearer) {
-        return withAuth(rest.post().uri("/" + table), authorizationBearer)
+    public Mono<List<Map<String,Object>>> insertAuth(String table, Map<String,Object> row, String authorizationBearer) {
+        return rest.post()
+                .uri("/" + table)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
                 .bodyValue(List.of(row))
                 .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+                .bodyToMono(LIST_OF_MAP);
     }
 
-    public Mono<List<Map<String, Object>>> insert(String table, Map<String, Object> row) {
-        return insert(table, row, null);
-    }
-
-    public Mono<List<Map<String, Object>>> upsert(String table,
-                                                  Map<String, Object> row,
-                                                  String authorizationBearer) {
-        return withAuth(rest.post().uri("/" + table), authorizationBearer)
-                .header("Prefer", "resolution=merge-duplicates,return=representation")
+    public Mono<List<Map<String,Object>>> upsertAuth(String table, Map<String,Object> row, String authorizationBearer) {
+        return rest.post()
+                .uri("/" + table)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+                .header("Prefer","resolution=merge-duplicates,return=representation")
                 .bodyValue(List.of(row))
                 .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+                .bodyToMono(LIST_OF_MAP);
     }
 
-    public Mono<List<Map<String, Object>>> upsert(String table, Map<String, Object> row) {
-        return upsert(table, row, null);
-    }
-
-    public Mono<List<Map<String, Object>>> select(String table,
-                                                  String queryParams,
-                                                  String authorizationBearer) {
+    public Mono<List<Map<String,Object>>> patchAuth(String table, String queryParams, Map<String,Object> fields, String authorizationBearer) {
         String qp = (queryParams == null || queryParams.isBlank()) ? "" : "?" + queryParams;
-        return withAuth(rest.get().uri("/" + table + qp), authorizationBearer)
+        return rest.patch()
+                .uri("/" + table + qp)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+                .bodyValue(fields)
                 .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+                .bodyToMono(LIST_OF_MAP);
     }
 
-    public Mono<List<Map<String, Object>>> select(String table, String queryParams) {
-        return select(table, queryParams, null);
+    public Mono<List<Map<String,Object>>> selectAuth(String table, String queryParams, String authorizationBearer) {
+        String qp = (queryParams == null || queryParams.isBlank()) ? "" : "?" + queryParams;
+        return rest.get()
+                .uri("/" + table + qp)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+                .retrieve()
+                .bodyToMono(LIST_OF_MAP);
     }
 
-    // ---------- RPC (sobre cargas completas y SIN duplicados) ----------
-    /** RPC con Authorization y ParameterizedTypeReference. */
+    public Mono<Integer> deleteAuth(String table, String queryParams, String authorizationBearer) {
+        return rest.delete()
+                .uri("/" + table + "?" + queryParams)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+                .retrieve()
+                .toBodilessEntity()
+                .map(resp -> resp.getStatusCode().value());
+    }
+
+    /** (Opcional) Upsert vía REST usando on_conflict (útil para entradas por día). */
+    public Mono<List<Map<String,Object>>> insertAuthOnConflict(String table,
+                                                               Map<String,Object> row,
+                                                               String onConflictCols,                    // ej. "practice_id,log_date"
+                                                               String authorizationBearer) {
+        return rest.post()
+                .uri("/" + table + "?on_conflict=" + onConflictCols)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+                .header("Prefer","resolution=merge-duplicates,return=representation")
+                .bodyValue(List.of(row))
+                .retrieve()
+                .bodyToMono(LIST_OF_MAP);
+    }
+
+    /* =========================================================
+       RPC
+       ========================================================= */
+
+    /** RPC genérico con Authorization. */
     public <T> Mono<T> callRpc(String fnName,
                                Map<String, Object> payload,
                                String authorizationBearer,
                                ParameterizedTypeReference<T> typeRef) {
-        return withAuth(rest.post().uri("/rpc/" + fnName), authorizationBearer)
+        return rest.post()
+                .uri("/rpc/" + fnName)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
                 .bodyValue(payload)
                 .retrieve()
                 .bodyToMono(typeRef);
     }
 
-    /** RPC SIN Authorization con ParameterizedTypeReference (usa apikey anónima). */
-    public <T> Mono<T> callRpc(String fnName,
-                               Map<String, Object> payload,
-                               ParameterizedTypeReference<T> typeRef) {
+    /** RPC sin body de respuesta (ideal para upserts / acciones). */
+    public Mono<Void> callRpcVoid(String fnName,
+                                  Map<String, Object> payload,
+                                  String authorizationBearer) {
         return rest.post()
                 .uri("/rpc/" + fnName)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
                 .bodyValue(payload)
                 .retrieve()
-                .bodyToMono(typeRef);
+                .bodyToMono(Void.class);
     }
 
-    /** RPC con Authorization y Class<T>. */
-    public <T> Mono<T> callRpc(String fnName,
-                               Map<String, Object> payload,
-                               String authorizationBearer,
-                               Class<T> clazz) {
-        return withAuth(rest.post().uri("/rpc/" + fnName), authorizationBearer)
-                .bodyValue(payload)
-                .retrieve()
-                .bodyToMono(clazz);
-    }
-
-    /** RPC SIN Authorization y Class<T>. */
-    public <T> Mono<T> callRpc(String fnName,
-                               Map<String, Object> payload,
-                               Class<T> clazz) {
+    /** RPC que devuelve List<Map<String,Object>> (comodín más común). */
+    public Mono<List<Map<String,Object>>> callRpcListMap(String fnName,
+                                                         Map<String, Object> payload,
+                                                         String authorizationBearer) {
         return rest.post()
                 .uri("/rpc/" + fnName)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
                 .bodyValue(payload)
                 .retrieve()
-                .bodyToMono(clazz);
+                .bodyToMono(LIST_OF_MAP);
     }
 
-    /** RPC como service_role con ParameterizedTypeReference. */
+    /** Fallback admin usando service_role (omite RLS si tu política lo permite). */
     public <T> Mono<T> callRpcAsServiceRole(String fnName,
                                             Map<String, Object> payload,
                                             ParameterizedTypeReference<T> typeRef) {
@@ -173,17 +200,5 @@ public class SupabaseDataClient {
                 .bodyValue(payload)
                 .retrieve()
                 .bodyToMono(typeRef);
-    }
-
-    /** RPC como service_role con Class<T>. */
-    public <T> Mono<T> callRpcAsServiceRole(String fnName,
-                                            Map<String, Object> payload,
-                                            Class<T> clazz) {
-        return rest.post()
-                .uri("/rpc/" + fnName)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceKey)
-                .bodyValue(payload)
-                .retrieve()
-                .bodyToMono(clazz);
     }
 }
