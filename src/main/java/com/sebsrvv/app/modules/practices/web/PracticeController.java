@@ -22,31 +22,31 @@ public class PracticeController {
     }
 
     private static String bearer(String authHeader) {
-        // Acepta "Bearer eyJ..." ya armado o solo el token
+        // Permitir autentificar con JWT
         if (authHeader == null || authHeader.isBlank()) return null;
         return authHeader.startsWith("Bearer ") ? authHeader : "Bearer " + authHeader;
     }
-
-    /* ================== PRACTICES ================== */
+    /* ----------API DE PRACTICAS -------------*/
+    /* Listar practicas */
 
     @GetMapping
     public Mono<List<Map<String,Object>>> list(@RequestHeader("Authorization") String authorization) {
         return service.listPractices(bearer(authorization));
     }
-
+    /* Crear practicas */
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public Mono<Map<String,Object>> create(@RequestHeader("Authorization") String authorization,
                                            @RequestBody PracticeDto dto) {
         return service.createPractice(dto, bearer(authorization));
     }
-
+    /* Editar practicas */
     @PatchMapping(value="/{practiceId}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public Mono<Map<String,Object>> update(@RequestHeader("Authorization") String authorization,
                                            @PathVariable String practiceId,
                                            @RequestBody PracticeDto dto) {
         return service.updatePractice(practiceId, dto, bearer(authorization));
     }
-
+    /* Borrar practicas */
     @DeleteMapping("/{practiceId}")
     public Mono<Map<String,Integer>> delete(@RequestHeader("Authorization") String authorization,
                                             @PathVariable String practiceId) {
@@ -55,14 +55,14 @@ public class PracticeController {
     }
 
     /* ================== ENTRIES ================== */
-
+    // Listar entradas a las practicas
     @GetMapping("/{practiceId}/entries")
     public Mono<List<Map<String,Object>>> listEntries(@RequestHeader("Authorization") String authorization,
                                                       @PathVariable String practiceId,
                                                       @RequestParam(name="from", required = false) String fromDate) {
         return service.listEntries(practiceId, fromDate, bearer(authorization));
     }
-
+    // Crear entradas a las practicas
     @PostMapping(value="/{practiceId}/entries", consumes = MediaType.APPLICATION_JSON_VALUE)
     public Mono<Map<String,Object>> createEntry(@RequestHeader("Authorization") String authorization,
                                                 @PathVariable String practiceId,
@@ -83,7 +83,7 @@ public class PracticeController {
         return service.upsertEntry(practiceId, date, value, note, bearer(authorization));
     }
 
-    /* ================== STATS ================== */
+    /* Ver estado semanal de las practicas */
 
     @GetMapping("/weekly-stats")
     public Mono<List<Map<String,Object>>> weeklyStats(@RequestHeader("Authorization") String authorization) {
@@ -91,7 +91,9 @@ public class PracticeController {
     }
 
     /* ================== RPCs opcionales ================== */
+    /* Autetificacion para trabajar con las tablas de Supabase */
 
+    //Confirmacion de actividad
     @PostMapping("/{practiceId}/mark/boolean")
     public Mono<Map<String,String>> markBoolean(@RequestHeader("Authorization") String authorization,
                                                 @PathVariable String practiceId,
@@ -102,6 +104,7 @@ public class PracticeController {
                 .thenReturn(Map.of("result","ok"));
     }
 
+    /* Ver progreso */
     @PostMapping("/{practiceId}/mark/quantity")
     public Mono<Map<String,String>> markQuantity(@RequestHeader("Authorization") String authorization,
                                                  @PathVariable String practiceId,
