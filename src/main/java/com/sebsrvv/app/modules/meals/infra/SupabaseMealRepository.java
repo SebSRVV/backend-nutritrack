@@ -1,4 +1,4 @@
-package com.sebsrvv.app.modules.meals.infrastructure;
+package com.sebsrvv.app.modules.meals.infra;
 
 import com.sebsrvv.app.modules.meals.domain.Meal;
 import com.sebsrvv.app.modules.meals.domain.MealCategory;
@@ -39,7 +39,7 @@ public class SupabaseMealRepository implements MealRepository {
         // Inserta en la tabla 'meal_logs' y obtiene la fila resultante
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> inserted =
-                (List<Map<String, Object>>) data.insertWithAuth("meal_logs", row, bearer).block();
+                (List<Map<String, Object>>) data.insertAuth("meal_logs", row, bearer).block();
 
         if (inserted == null || inserted.isEmpty()) {
             throw new IllegalStateException("No se insertó meal_logs");
@@ -61,7 +61,7 @@ public class SupabaseMealRepository implements MealRepository {
                 Map<String, Object> link = new HashMap<>();
                 link.put("meal_log_id", mealId);
                 link.put("category_id", catId);
-                data.insertWithAuth("meal_log_categories", link, bearer).block();
+                data.insertAuth("meal_log_categories", link, bearer).block();
             }
         }
 
@@ -79,10 +79,10 @@ public class SupabaseMealRepository implements MealRepository {
         row.remove("id"); // El ID no se debe modificar en la actualización
 
         // Actualiza la fila en la tabla principal
-        data.patchWithAuth("meal_logs", "id=eq." + meal.getId(), row, bearer).block();
+        data.patchAuth("meal_logs", "id=eq." + meal.getId(), row, bearer).block();
 
         // Elimina las categorías anteriores para volver a insertarlas
-        data.deleteWithAuth("meal_log_categories", "meal_log_id=eq." + meal.getId(), bearer).block();
+        data.deleteAuth("meal_log_categories", "meal_log_id=eq." + meal.getId(), bearer).block();
 
         // Prepara las nuevas categorías a asociar
         List<Integer> allCatIds = new ArrayList<>();
@@ -97,7 +97,7 @@ public class SupabaseMealRepository implements MealRepository {
                 Map<String, Object> link = new HashMap<>();
                 link.put("meal_log_id", meal.getId());
                 link.put("category_id", catId);
-                data.insertWithAuth("meal_log_categories", link, bearer).block();
+                data.insertAuth("meal_log_categories", link, bearer).block();
             }
         }
 
@@ -119,7 +119,7 @@ public class SupabaseMealRepository implements MealRepository {
 
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> rows =
-                (List<Map<String, Object>>) data.selectWithAuth("meal_logs", qp, bearer).block();
+                (List<Map<String, Object>>) data.selectAuth("meal_logs", qp, bearer).block();
 
         if (rows == null || rows.isEmpty()) return Optional.empty();
         return Optional.of(mapMeal(rows.get(0))); // Mapea los datos al objeto Meal
@@ -132,9 +132,9 @@ public class SupabaseMealRepository implements MealRepository {
     @Override
     public void delete(UUID mealId, String bearer) {
         // Primero elimina las relaciones
-        data.deleteWithAuth("meal_log_categories", "meal_log_id=eq." + mealId, bearer).block();
+        data.deleteAuth("meal_log_categories", "meal_log_id=eq." + mealId, bearer).block();
         // Luego elimina el registro principal
-        data.deleteWithAuth("meal_logs", "id=eq." + mealId, bearer).block();
+        data.deleteAuth("meal_logs", "id=eq." + mealId, bearer).block();
     }
 
     // ---------- SELECT by user + date ----------
@@ -162,7 +162,7 @@ public class SupabaseMealRepository implements MealRepository {
         // Ejecuta la consulta en Supabase
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> rows =
-                (List<Map<String, Object>>) data.selectWithAuth("meal_logs", qp, bearer).block();
+                (List<Map<String, Object>>) data.selectAuth("meal_logs", qp, bearer).block();
 
         if (rows == null) return List.of();
         List<Meal> result = new ArrayList<>();
@@ -193,7 +193,7 @@ public class SupabaseMealRepository implements MealRepository {
 
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> rows =
-                (List<Map<String, Object>>) data.selectWithAuth("meal_logs", qp, bearer).block();
+                (List<Map<String, Object>>) data.selectAuth("meal_logs", qp, bearer).block();
 
         if (rows == null) return List.of();
         List<Meal> result = new ArrayList<>();
@@ -209,7 +209,7 @@ public class SupabaseMealRepository implements MealRepository {
     public List<MealCategory> findAllCategories(String bearer) {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> rows =
-                (List<Map<String, Object>>) data.selectWithAuth("food_categories", null, bearer).block();
+                (List<Map<String, Object>>) data.selectAuth("food_categories", null, bearer).block();
 
         if (rows == null) return List.of();
         List<MealCategory> out = new ArrayList<>();
@@ -302,7 +302,7 @@ public class SupabaseMealRepository implements MealRepository {
             String qp = "name=eq." + encodeEquals(name);
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> rows =
-                    (List<Map<String, Object>>) data.selectWithAuth("food_categories", qp, bearer).block();
+                    (List<Map<String, Object>>) data.selectAuth("food_categories", qp, bearer).block();
 
             if (rows != null && !rows.isEmpty()) {
                 ids.add(asInt(rows.get(0).get("id")));
@@ -314,7 +314,7 @@ public class SupabaseMealRepository implements MealRepository {
             row.put("name", name);
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> inserted =
-                    (List<Map<String, Object>>) data.insertWithAuth("food_categories", row, bearer).block();
+                    (List<Map<String, Object>>) data.insertAuth("food_categories", row, bearer).block();
             if (inserted != null && !inserted.isEmpty()) {
                 ids.add(asInt(inserted.get(0).get("id")));
             }
