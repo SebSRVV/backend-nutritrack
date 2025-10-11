@@ -20,7 +20,7 @@ public class SupabaseDataClient {
 
     private final WebClient rest;
     private final String anonKey;
-    private final String serviceKey; // opcional para llamadas como service_role
+    private final String serviceKey; // para llamadas como service_role
 
     public SupabaseDataClient(WebClient.Builder builder,
                               @Value("${supabase.url}") String baseUrl,
@@ -135,11 +135,25 @@ public class SupabaseDataClient {
                 .map(resp -> resp.getStatusCode().value());
     }
 
+    /** (Opcional) Upsert vía REST usando on_conflict (útil para entradas por día). */
+    public Mono<List<Map<String,Object>>> insertAuthOnConflict(String table,
+                                                               Map<String,Object> row,
+                                                               String onConflictCols,                    // ej. "practice_id,log_date"
+                                                               String authorizationBearer) {
+        return rest.post()
+                .uri("/" + table + "?on_conflict=" + onConflictCols)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+                .header("Prefer","resolution=merge-duplicates,return=representation")
+                .bodyValue(List.of(row))
+                .retrieve()
+                .bodyToMono(LIST_OF_MAP);
+    }
+
     /* =========================================================
        RPC
        ========================================================= */
 
-    /** Llama un RPC con el Authorization que le pases (ej. "Bearer eyJ..."). */
+    /** RPC genérico con Authorization. */
     public <T> Mono<T> callRpc(String fnName,
                                Map<String, Object> payload,
                                String authorizationBearer,
@@ -152,7 +166,31 @@ public class SupabaseDataClient {
                 .bodyToMono(typeRef);
     }
 
-    /** Fallback admin usando service_role. */
+    /** RPC sin body de respuesta (ideal para upserts / acciones). */
+    public Mono<Void> callRpcVoid(String fnName,
+                                  Map<String, Object> payload,
+                                  String authorizationBearer) {
+        return rest.post()
+                .uri("/rpc/" + fnName)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+                .bodyValue(payload)
+                .retrieve()
+                .bodyToMono(Void.class);
+    }
+
+    /** RPC que devuelve List<Map<String,Object>> (comodín más común). */
+    public Mono<List<Map<String,Object>>> callRpcListMap(String fnName,
+                                                         Map<String, Object> payload,
+                                                         String authorizationBearer) {
+        return rest.post()
+                .uri("/rpc/" + fnName)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+                .bodyValue(payload)
+                .retrieve()
+                .bodyToMono(LIST_OF_MAP);
+    }
+
+    /** Fallback admin usando service_role (omite RLS si tu política lo permite). */
     public <T> Mono<T> callRpcAsServiceRole(String fnName,
                                             Map<String, Object> payload,
                                             ParameterizedTypeReference<T> typeRef) {
