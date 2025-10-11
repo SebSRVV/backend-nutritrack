@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Nutrition Report</title>
+    <style>
+        body { font-family: sans-serif; font-size: 12px; }
+        h1 { font-size: 20px; margin: 0 0 8px 0; }
+        table { width:100%; border-collapse:collapse; margin-top:8px; }
+        th, td { border:1px solid #ccc; padding:6px; text-align:left; }
+        th { background:#f5f5f5; }
+    </style>
+</head>
+<body>
+<h1>Nutrition Report</h1>
+<p>User: <b th:text="${userId}">userId</b></p>
+<p>Range: <span th:text="${from}">from</span> — <span th:text="${to}">to</span></p>
+
+<h2>Summary</h2>
+<table>
+    <tr><th>Metric</th><th>Value</th></tr>
+    <tr><td>Total kcal (period)</td><td th:text="${summaryTotalKcal}">0</td></tr>
+    <tr><td>Avg Protein (g/day)</td><td th:text="${avgProtein}">0</td></tr>
+</table>
+</body>
+</html>

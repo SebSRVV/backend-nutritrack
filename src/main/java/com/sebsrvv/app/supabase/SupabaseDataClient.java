@@ -12,34 +12,16 @@ import reactor.core.publisher.Mono;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Servicio que se encarga de manejar la comunicación directa con la base de datos de Supabase
- * utilizando el cliente WebClient de Spring.
- *
- * Este componente permite ejecutar operaciones CRUD genéricas (insert, select, update, delete)
- * y también funciones RPC (Remote Procedure Calls).
- *
- * Es utilizado, por ejemplo, por el módulo "meals" para registrar, actualizar o eliminar comidas
- * mediante las tablas y funciones remotas definidas en Supabase.
- */
 @Service
 public class SupabaseDataClient {
 
-    // Cliente WebClient configurado para comunicarse con Supabase REST
+    private static final ParameterizedTypeReference<List<Map<String, Object>>> LIST_OF_MAP =
+            new ParameterizedTypeReference<>() {};
+
     private final WebClient rest;
-
-    // Claves de acceso a Supabase (pública y de servicio)
     private final String anonKey;
-    private final String serviceKey;
+    private final String serviceKey; // para llamadas como service_role
 
-    /**
-     * Constructor que configura el cliente HTTP base para realizar las peticiones REST hacia Supabase.
-     *
-     * @param builder objeto builder del WebClient
-     * @param baseUrl URL base de Supabase (por ejemplo: https://xxxxx.supabase.co)
-     * @param anonKey clave pública (anon)
-     * @param serviceKey clave privada del rol de servicio (service_role)
-     */
     public SupabaseDataClient(WebClient.Builder builder,
                               @Value("${supabase.url}") String baseUrl,
                               @Value("${supabase.anonKey}") String anonKey,
@@ -47,40 +29,52 @@ public class SupabaseDataClient {
         this.anonKey = anonKey;
         this.serviceKey = serviceKey;
 
-        // Configuración del cliente base público (usa anonKey)
-        // Este cliente se usa para consultas abiertas o funciones con Row-Level Security (RLS)
         this.rest = builder
                 .baseUrl(baseUrl + "/rest/v1")
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .defaultHeader("apikey", anonKey)
-                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + anonKey)
                 .defaultHeader("Prefer", "return=representation")
                 .build();
     }
 
-    // =========================================================================
-    // ============= MÉTODOS CRUD GENÉRICOS (usa anonKey por defecto) ===========
-    // =========================================================================
+    /* =========================================================
+       CRUD "público" (sin Authorization). Útiles si no hay RLS.
+       ========================================================= */
 
-    /** Inserta una nueva fila en una tabla específica */
-    public Mono<List> insert(String table, Map<String, Object> row) {
+    public Mono<List<Map<String,Object>>> insert(String table, Map<String,Object> row) {
         return rest.post()
                 .uri("/" + table)
                 .bodyValue(List.of(row))
                 .retrieve()
-                .bodyToMono(List.class);
+                .bodyToMono(LIST_OF_MAP);
     }
 
-    /** Obtiene datos desde una tabla aplicando filtros opcionales */
-    public Mono<List> select(String table, String queryParams) {
+    public Mono<List<Map<String,Object>>> upsert(String table, Map<String,Object> row) {
+        return rest.post()
+                .uri("/" + table)
+                .header("Prefer","resolution=merge-duplicates,return=representation")
+                .bodyValue(List.of(row))
+                .retrieve()
+                .bodyToMono(LIST_OF_MAP);
+    }
+
+    public Mono<List<Map<String,Object>>> patch(String table, String queryParams, Map<String,Object> fields) {
+        String qp = (queryParams == null || queryParams.isBlank()) ? "" : "?" + queryParams;
+        return rest.patch()
+                .uri("/" + table + qp)
+                .bodyValue(fields)
+                .retrieve()
+                .bodyToMono(LIST_OF_MAP);
+    }
+
+    public Mono<List<Map<String,Object>>> select(String table, String queryParams) {
         String qp = (queryParams == null || queryParams.isBlank()) ? "" : "?" + queryParams;
         return rest.get()
                 .uri("/" + table + qp)
                 .retrieve()
-                .bodyToMono(List.class);
+                .bodyToMono(LIST_OF_MAP);
     }
 
-    /** Elimina filas de una tabla según parámetros de búsqueda */
     public Mono<Integer> delete(String table, String queryParams) {
         return rest.delete()
                 .uri("/" + table + "?" + queryParams)
@@ -89,24 +83,77 @@ public class SupabaseDataClient {
                 .map(resp -> resp.getStatusCode().value());
     }
 
-    /** Inserta o actualiza registros (merge) según el contenido existente */
-    public Mono<List> upsert(String table, Map<String, Object> row) {
+    /* =========================================================
+       CRUD con Authorization (necesario con RLS).
+       Pasa "Bearer <jwt>" en authorizationBearer.
+       ========================================================= */
+
+    public Mono<List<Map<String,Object>>> insertAuth(String table, Map<String,Object> row, String authorizationBearer) {
         return rest.post()
                 .uri("/" + table)
-                .header("Prefer", "resolution=merge-duplicates,return=representation")
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
                 .bodyValue(List.of(row))
                 .retrieve()
-                .bodyToMono(List.class);
+                .bodyToMono(LIST_OF_MAP);
     }
 
-    // =========================================================================
-    // ===================== LLAMADAS A FUNCIONES RPC ==========================
-    // =========================================================================
+    public Mono<List<Map<String,Object>>> upsertAuth(String table, Map<String,Object> row, String authorizationBearer) {
+        return rest.post()
+                .uri("/" + table)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+                .header("Prefer","resolution=merge-duplicates,return=representation")
+                .bodyValue(List.of(row))
+                .retrieve()
+                .bodyToMono(LIST_OF_MAP);
+    }
 
-    /**
-     * Llama a una función RPC personalizada de Supabase, pasando el token JWT que se indique.
-     * Este métdo permite invocar funciones seguras según el rol del usuario autenticado.
-     */
+    public Mono<List<Map<String,Object>>> patchAuth(String table, String queryParams, Map<String,Object> fields, String authorizationBearer) {
+        String qp = (queryParams == null || queryParams.isBlank()) ? "" : "?" + queryParams;
+        return rest.patch()
+                .uri("/" + table + qp)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+                .bodyValue(fields)
+                .retrieve()
+                .bodyToMono(LIST_OF_MAP);
+    }
+
+    public Mono<List<Map<String,Object>>> selectAuth(String table, String queryParams, String authorizationBearer) {
+        String qp = (queryParams == null || queryParams.isBlank()) ? "" : "?" + queryParams;
+        return rest.get()
+                .uri("/" + table + qp)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+                .retrieve()
+                .bodyToMono(LIST_OF_MAP);
+    }
+
+    public Mono<Integer> deleteAuth(String table, String queryParams, String authorizationBearer) {
+        return rest.delete()
+                .uri("/" + table + "?" + queryParams)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+                .retrieve()
+                .toBodilessEntity()
+                .map(resp -> resp.getStatusCode().value());
+    }
+
+    /** (Opcional) Upsert vía REST usando on_conflict (útil para entradas por día). */
+    public Mono<List<Map<String,Object>>> insertAuthOnConflict(String table,
+                                                               Map<String,Object> row,
+                                                               String onConflictCols,                    // ej. "practice_id,log_date"
+                                                               String authorizationBearer) {
+        return rest.post()
+                .uri("/" + table + "?on_conflict=" + onConflictCols)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+                .header("Prefer","resolution=merge-duplicates,return=representation")
+                .bodyValue(List.of(row))
+                .retrieve()
+                .bodyToMono(LIST_OF_MAP);
+    }
+
+    /* =========================================================
+       RPC
+       ========================================================= */
+
+    /** RPC genérico con Authorization. */
     public <T> Mono<T> callRpc(String fnName,
                                Map<String, Object> payload,
                                String authorizationBearer,
@@ -119,10 +166,31 @@ public class SupabaseDataClient {
                 .bodyToMono(typeRef);
     }
 
-    /**
-     * Llama a una función RPC con privilegios de administrador (service_role).
-     * Se usa para operaciones que requieren más permisos, como mantenimiento o migraciones.
-     */
+    /** RPC sin body de respuesta (ideal para upserts / acciones). */
+    public Mono<Void> callRpcVoid(String fnName,
+                                  Map<String, Object> payload,
+                                  String authorizationBearer) {
+        return rest.post()
+                .uri("/rpc/" + fnName)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+                .bodyValue(payload)
+                .retrieve()
+                .bodyToMono(Void.class);
+    }
+
+    /** RPC que devuelve List<Map<String,Object>> (comodín más común). */
+    public Mono<List<Map<String,Object>>> callRpcListMap(String fnName,
+                                                         Map<String, Object> payload,
+                                                         String authorizationBearer) {
+        return rest.post()
+                .uri("/rpc/" + fnName)
+                .header(HttpHeaders.AUTHORIZATION, authorizationBearer)
+                .bodyValue(payload)
+                .retrieve()
+                .bodyToMono(LIST_OF_MAP);
+    }
+
+    /** Fallback admin usando service_role (omite RLS si tu política lo permite). */
     public <T> Mono<T> callRpcAsServiceRole(String fnName,
                                             Map<String, Object> payload,
                                             ParameterizedTypeReference<T> typeRef) {
@@ -132,93 +200,5 @@ public class SupabaseDataClient {
                 .bodyValue(payload)
                 .retrieve()
                 .bodyToMono(typeRef);
-    }
-
-    // =========================================================================
-    // ===================== MÉTODOS AUXILIARES ================================
-    // =========================================================================
-
-    /** Inserta múltiples filas a la vez en una tabla */
-    public Mono<List> insertMany(String table, List<Map<String, Object>> rows) {
-        return rest.post()
-                .uri("/" + table)
-                .bodyValue(rows)
-                .retrieve()
-                .bodyToMono(List.class);
-    }
-
-    /** Actualiza (PATCH) registros existentes según filtros */
-    public Mono<Integer> patch(String table, String queryParams, Map<String, Object> body) {
-        return rest.patch()
-                .uri("/" + table + "?" + queryParams)
-                .bodyValue(body)
-                .retrieve()
-                .toBodilessEntity()
-                .map(resp -> resp.getStatusCode().value());
-    }
-
-    // =========================================================================
-    // ============= VERSIONES SEGURAS CON JWT (para RLS en Supabase) ==========
-    // =========================================================================
-
-    /**
-     * Inserta un registro con autenticación JWT.
-     * Usado por el módulo "meals" para registrar comidas bajo el usuario actual.
-     */
-    public Mono<List> insertWithAuth(String table, Map<String, Object> row, String bearer) {
-        return rest.post()
-                .uri("/" + table)
-                .header(HttpHeaders.AUTHORIZATION, bearer)
-                .bodyValue(List.of(row))
-                .retrieve()
-                .bodyToMono(List.class);
-    }
-
-    /** Inserta múltiples registros autenticados con JWT */
-    public Mono<List> insertManyWithAuth(String table, List<Map<String, Object>> rows, String bearer) {
-        return rest.post()
-                .uri("/" + table)
-                .header(HttpHeaders.AUTHORIZATION, bearer)
-                .bodyValue(rows)
-                .retrieve()
-                .bodyToMono(List.class);
-    }
-
-    /** Actualiza registros autenticados (solo si pertenecen al usuario) */
-    public Mono<Integer> patchWithAuth(String table, String queryParams, Map<String, Object> body, String bearer) {
-        return rest.patch()
-                .uri("/" + table + "?" + queryParams)
-                .header(HttpHeaders.AUTHORIZATION, bearer)
-                .bodyValue(body)
-                .retrieve()
-                .toBodilessEntity()
-                .map(resp -> resp.getStatusCode().value());
-    }
-
-    /**
-     * Realiza una consulta segura usando el token JWT del usuario.
-     * Muy útil para aplicar las reglas de seguridad RLS de Supabase.
-     * En el módulo "meals", se usa para obtener comidas específicas del usuario autenticado.
-     */
-    public Mono<List> selectWithAuth(String table, String queryParams, String bearer) {
-        String qp = (queryParams == null || queryParams.isBlank()) ? "" : "?" + queryParams;
-        return rest.get()
-                .uri("/" + table + qp)
-                .header(HttpHeaders.AUTHORIZATION, bearer)
-                .retrieve()
-                .bodyToMono(List.class);
-    }
-
-    /**
-     * Elimina registros de forma segura con autenticación JWT.
-     * En el módulo "meals", se utiliza cuando un usuario elimina una comida suya.
-     */
-    public Mono<Integer> deleteWithAuth(String table, String queryParams, String bearer) {
-        return rest.delete()
-                .uri("/" + table + "?" + queryParams)
-                .header(HttpHeaders.AUTHORIZATION, bearer)
-                .retrieve()
-                .toBodilessEntity()
-                .map(resp -> resp.getStatusCode().value());
     }
 }
