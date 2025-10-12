@@ -8,16 +8,9 @@ import java.util.List;
 @ConfigurationProperties(prefix = "app.cors")
 public class CorsProperties {
 
-    /**
-     * Comma separated list (env CORS_LIST).
-     * Ej: "https://app.com,https://admin.app.com,http://localhost:4200"
-     */
+    
     private String allowedOrigins = "";
 
-    /**
-     * Si la lista queda vacía, ¿permitimos todo? (mejor dejar en false en prod).
-     * Puedes sobreescribir en application-dev.properties si quieres.
-     */
     private boolean allowAllWhenEmpty = false;
 
     public String getAllowedOrigins() { return allowedOrigins; }
