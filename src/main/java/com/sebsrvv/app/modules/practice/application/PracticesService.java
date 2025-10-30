@@ -5,6 +5,7 @@ import com.sebsrvv.app.modules.practice.domain.Practices;
 import com.sebsrvv.app.modules.practice.domain.PracticesRepository;
 import com.sebsrvv.app.modules.practice.web.dto.PracticesRequest;
 import com.sebsrvv.app.modules.practice.web.dto.PracticesResponse;
+import org.hibernate.annotations.SoftDelete;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,9 +19,9 @@ public class PracticesService {
 
     //PracticesService practicesService;
     @Transactional
-    public PracticesResponse createPractice(PracticesRequest practicesRequest) {
+    public PracticesResponse createPractice(PracticesRequest practicesRequest, UUID id) {
         Practices nuevoPractice = new Practices();
-        nuevoPractice.setUserId(UUID.fromString("641ef3e1-9d56-4487-8e1e-d89733103ed0"));
+        nuevoPractice.setUserId(id);
         nuevoPractice.setName(practicesRequest.getName());
         nuevoPractice.setDescription(practicesRequest.getDescription());
         nuevoPractice.setIcon(practicesRequest.getIcon());
@@ -52,10 +53,17 @@ public class PracticesService {
             Practices guardar = practicesRepository.save(actualizar);
             return MappearRespuesta(guardar);
         }
-
-
     }
 
+
+    //@Transactional
+    //public list<PracticesResponse>
+
+    //1. Seguir con las APIs
+    //2. Crear los exceptions
+    //3. Aplicar Softs
+    //Aplicar Soft
+    //@SoftDelete
     @Transactional
     public Boolean deletePractice(UUID id) {
         if (practicesRepository.existsById(id)) {
