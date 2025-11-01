@@ -19,29 +19,10 @@ public class PracticesEntriesService {
     @Autowired
     private PracticesEntriesRepository practicesEntriesRepository;
 
-    /*@Transactional
-    public PracticesEntriesResponse create(PracticesEntriesRequest practicesEntriesRequest, UUID practiceId, UUID userId) {
-        PracticesEntries practicesEntries = new PracticesEntries();
-        practicesEntries.setId(UUID.randomUUID());
-        practicesEntries.setPracticeId(practiceId);
-        practicesEntries.setUserId(userId);
-        practicesEntries.setLogDate(new Date());
-        practicesEntries.setValue(practicesEntriesRequest.getValue());
-        practicesEntries.setNote(practicesEntriesRequest.getNote());
-        practicesEntries.setAchieved(practicesEntriesRequest.getAchieved());
-        practicesEntriesRepository.save(practicesEntries);
-        PracticesEntriesResponse respuesta = new PracticesEntriesResponse();
-        respuesta.setLogDate(practicesEntries.getLogDate());
-        respuesta.setAchieved(practicesEntries.getAchieved());
-        respuesta.setNote(practicesEntries.getNote());
-        respuesta.setValue(practicesEntries.getValue());
-        return respuesta;
-    }*/
-
     @Transactional
     public PracticesEntriesDTO create(PracticesEntriesDTO dto, UUID practiceId, UUID userId) {
         PracticesEntries entrada = new PracticesEntries();
-        entrada.setId(UUID.randomUUID());
+        //entrada.setId();
         entrada.setPracticeId(practiceId);
         entrada.setUserId(userId);
         entrada.setLogDate(LocalDate.now());
