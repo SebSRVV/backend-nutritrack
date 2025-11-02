@@ -64,6 +64,7 @@ public class PracticesService {
     //3. Aplicar Softs
     //Aplicar Soft
     //@SoftDelete
+    @SoftDelete
     @Transactional
     public Boolean deletePractice(UUID id) {
         if (practicesRepository.existsById(id)) {

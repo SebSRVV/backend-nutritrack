@@ -64,7 +64,7 @@ public class PracticesController {
     }
 
     @PostMapping("crearweek/{practiceId}/{userId}")
-    public ResponseEntity<?> CrearWeek(@RequestBody PracticesWeekStatsRequest Cuerpo, @RequestParam UUID practiceId, @RequestParam UUID userId){
+    public ResponseEntity<?> CrearWeek(@RequestBody PracticesWeekStatsRequest Cuerpo, @PathVariable UUID practiceId, @PathVariable UUID userId){
         practicesWeekStatsService.create(Cuerpo,practiceId,userId);
         return ResponseEntity.ok().build();
     }

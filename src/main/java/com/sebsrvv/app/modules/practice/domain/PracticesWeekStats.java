@@ -6,7 +6,7 @@ import java.util.UUID;
 import java.time.LocalDate;
 
 @Entity
-@Table(name="practice_weekly_stats")
+@Table(name="practice_weekly_stats_v2")
 public class PracticesWeekStats {
     @Id
     @GeneratedValue(generator = "UUID")
