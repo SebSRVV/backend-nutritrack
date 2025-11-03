@@ -3,6 +3,7 @@ package com.sebsrvv.app.modules.practice.application;
 
 import com.sebsrvv.app.modules.practice.domain.Practices;
 import com.sebsrvv.app.modules.practice.domain.PracticesRepository;
+import com.sebsrvv.app.modules.practice.web.dto.PracticesDTO;
 import com.sebsrvv.app.modules.practice.web.dto.PracticesRequest;
 import com.sebsrvv.app.modules.practice.web.dto.PracticesResponse;
 import org.hibernate.annotations.SoftDelete;
@@ -19,7 +20,7 @@ public class PracticesService {
 
     //PracticesService practicesService;
     @Transactional
-    public PracticesResponse createPractice(PracticesRequest practicesRequest, UUID id) {
+    public PracticesDTO createPractice(PracticesDTO practicesRequest, UUID id) {
         Practices nuevoPractice = new Practices();
         nuevoPractice.setUserId(id);
         nuevoPractice.setName(practicesRequest.getName());
@@ -32,11 +33,11 @@ public class PracticesService {
         nuevoPractice.setDaysPerWeek(practicesRequest.getDays_per_week());
         nuevoPractice.setIsActive(practicesRequest.getIs_active());
         Practices guardar = practicesRepository.save(nuevoPractice);
-        return MappearRespuesta(guardar);
+        return practicesRequest;
     }
 
     @Transactional
-    public PracticesResponse updatePractice(PracticesRequest practicesRequest, UUID id) {
+    public PracticesDTO updatePractice(PracticesDTO practicesRequest, UUID id) {
         Practices actualizar = practicesRepository.findById(id).orElse(null);
         if (actualizar == null) {
             return null;
@@ -51,7 +52,7 @@ public class PracticesService {
             actualizar.setDaysPerWeek(practicesRequest.getDays_per_week());
             actualizar.setIsActive(practicesRequest.getIs_active());
             Practices guardar = practicesRepository.save(actualizar);
-            return MappearRespuesta(guardar);
+            return practicesRequest;
         }
     }
 
@@ -76,7 +77,7 @@ public class PracticesService {
         }
     }
 
-    public PracticesResponse MappearRespuesta(Practices practice){
+    /*public PracticesResponse MappearRespuesta(Practices practice){
         PracticesResponse Respuesta = new PracticesResponse();
         Respuesta.setName(practice.getName());
         Respuesta.setDescription(practice.getDescription());
@@ -87,5 +88,5 @@ public class PracticesService {
         Respuesta.setDays_per_week(practice.getDaysPerWeek());
         Respuesta.setIs_active(practice.getIsActive());
         return Respuesta;
-    }
+    }*/
 }

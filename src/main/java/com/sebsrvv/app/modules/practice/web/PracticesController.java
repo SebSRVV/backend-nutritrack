@@ -4,10 +4,7 @@ package com.sebsrvv.app.modules.practice.web;
 import com.sebsrvv.app.modules.practice.application.PracticesEntriesService;
 import com.sebsrvv.app.modules.practice.application.PracticesService;
 import com.sebsrvv.app.modules.practice.application.PracticesWeekStatsService;
-import com.sebsrvv.app.modules.practice.web.dto.PracticesEntriesDTO;
-import com.sebsrvv.app.modules.practice.web.dto.PracticesEntriesRequest;
-import com.sebsrvv.app.modules.practice.web.dto.PracticesRequest;
-import com.sebsrvv.app.modules.practice.web.dto.PracticesWeekStatsRequest;
+import com.sebsrvv.app.modules.practice.web.dto.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,13 +25,13 @@ public class PracticesController {
     private PracticesWeekStatsService practicesWeekStatsService;
 
     @PostMapping("/crear/{id}")
-    public ResponseEntity<?> CrearPractica(@RequestBody PracticesRequest Cuerpo, @PathVariable UUID id){
+    public ResponseEntity<?> CrearPractica(@RequestBody PracticesDTO Cuerpo, @PathVariable UUID id){
         practicesService.createPractice(Cuerpo,id);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/editar/{id}")
-    public ResponseEntity<?> EditarPractica(@RequestBody PracticesRequest Cuerpo, @PathVariable UUID id){
+    public ResponseEntity<?> EditarPractica(@RequestBody PracticesDTO Cuerpo, @PathVariable UUID id){
         practicesService.updatePractice(Cuerpo,id);
         return ResponseEntity.ok().build();
     }

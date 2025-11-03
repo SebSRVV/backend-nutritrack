@@ -1,22 +1,24 @@
 package com.sebsrvv.app.modules.practice.exception;
 
-import com.sebsrvv.app.modules.auth.exception.AuthException;
 import org.springframework.http.HttpStatus;
 
-public class NoUserException extends PracticesExceptions {
-    public NoUserException(String userId) {
+import java.util.UUID;
+
+public class NoUserException extends PracticeException {
+
+    public NoUserException(UUID userId) {
         super(
-                String.format("No se encontró ningún usuario con el ID: %s", userId),
                 HttpStatus.NOT_FOUND,
-                "USER_NOT_FOUND"
+                "USER_NOT_FOUND",
+                String.format("No se encontró ningún usuario con el ID: %s", userId)
         );
     }
 
-    public NoUserException() {
+    /*public NoUserException() {
         super(
-                "No se encontró ningún usuario con las credenciales proporcionadas",
                 HttpStatus.NOT_FOUND,
-                "USER_NOT_FOUND"
+                "USER_NOT_FOUND",
+                "No se encontró ningún usuario con las credenciales proporcionadas"
         );
-    }
+    }*/
 }
