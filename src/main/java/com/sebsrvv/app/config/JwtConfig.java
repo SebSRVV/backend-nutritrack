@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
@@ -13,9 +14,11 @@ import java.nio.charset.StandardCharsets;
 public class JwtConfig {
 
     @Bean
-    JwtDecoder jwtDecoder(@Value("${supabase.jwtSecret}") String jwtSecret) {
-        // HS256 (HMAC) con el secreto de Supabase
+    public JwtDecoder jwtDecoder(@Value("${SUPABASE_JWT_SECRET}") String jwtSecret) {
         var key = new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-        return NimbusJwtDecoder.withSecretKey(key).build();
+        return NimbusJwtDecoder
+                .withSecretKey(key)
+                .macAlgorithm(MacAlgorithm.HS256) // Forzamos HS256
+                .build();
     }
 }
