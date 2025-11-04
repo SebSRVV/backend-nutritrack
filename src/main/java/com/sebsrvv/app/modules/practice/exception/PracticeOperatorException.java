@@ -3,7 +3,7 @@ package com.sebsrvv.app.modules.practice.exception;
 import org.springframework.http.HttpStatus;
 
 public class PracticeOperatorException extends PracticeException {
-    public PracticeOperatorException(String message) {
+    public PracticeOperatorException() {
         super(
                 HttpStatus.UNPROCESSABLE_ENTITY,
                 "INVALID_OPERATOR",

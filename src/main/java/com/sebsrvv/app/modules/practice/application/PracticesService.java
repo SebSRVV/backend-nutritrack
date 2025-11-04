@@ -2,7 +2,9 @@ package com.sebsrvv.app.modules.practice.application;
 
 
 import com.sebsrvv.app.modules.practice.domain.Practices;
+import com.sebsrvv.app.modules.practice.domain.PracticesEntries;
 import com.sebsrvv.app.modules.practice.domain.PracticesRepository;
+import com.sebsrvv.app.modules.practice.exception.*;
 import com.sebsrvv.app.modules.practice.web.dto.PracticesDTO;
 import com.sebsrvv.app.modules.practice.web.dto.PracticesRequest;
 import com.sebsrvv.app.modules.practice.web.dto.PracticesResponse;
@@ -26,10 +28,22 @@ public class PracticesService {
         nuevoPractice.setName(practicesRequest.getName());
         nuevoPractice.setDescription(practicesRequest.getDescription());
         nuevoPractice.setIcon(practicesRequest.getIcon());
-        nuevoPractice.setValueKind(practicesRequest.getValue_kind());
+
+        String kind = practicesRequest.getValue_kind();
+        if ("quantity".equals(kind) || "boolean".equals(kind)) {
+            nuevoPractice.setValueKind(practicesRequest.getValue_kind());
+        } else {
+            throw new PracticeValueKindException();
+        }
         nuevoPractice.setTargetValue(practicesRequest.getTarget_value());
         nuevoPractice.setTargetUnit(practicesRequest.getTarget_unit());
-        nuevoPractice.setPracticeOperator(practicesRequest.getPractice_operator());
+
+        String operator = practicesRequest.getPractice_operator();
+        if ("gte".equals(operator) || "lte".equals(operator) || "eq".equals(operator)) {
+            nuevoPractice.setPracticeOperator(operator);
+        } else {
+            throw new PracticeOperatorException();
+        }
         nuevoPractice.setDaysPerWeek(practicesRequest.getDays_per_week());
         nuevoPractice.setIsActive(practicesRequest.getIs_active());
         Practices guardar = practicesRepository.save(nuevoPractice);
@@ -38,22 +52,35 @@ public class PracticesService {
 
     @Transactional
     public PracticesDTO updatePractice(PracticesDTO practicesRequest, UUID id) {
-        Practices actualizar = practicesRepository.findById(id).orElse(null);
-        if (actualizar == null) {
-            return null;
-        } else{
-            actualizar.setName(practicesRequest.getName());
-            actualizar.setDescription(practicesRequest.getDescription());
-            actualizar.setIcon(practicesRequest.getIcon());
+        Practices actualizar = practicesRepository.findById(id).orElseThrow(() -> new NoPracticeException(id));
+
+        actualizar.setName(practicesRequest.getName());
+        actualizar.setDescription(practicesRequest.getDescription());
+        actualizar.setIcon(practicesRequest.getIcon());
+
+        String kind = practicesRequest.getValue_kind();
+        if ("quantity".equals(kind) || "boolean".equals(kind)) {
             actualizar.setValueKind(practicesRequest.getValue_kind());
-            actualizar.setTargetValue(practicesRequest.getTarget_value());
-            actualizar.setTargetUnit(practicesRequest.getTarget_unit());
-            actualizar.setPracticeOperator(practicesRequest.getPractice_operator());
-            actualizar.setDaysPerWeek(practicesRequest.getDays_per_week());
-            actualizar.setIsActive(practicesRequest.getIs_active());
-            Practices guardar = practicesRepository.save(actualizar);
-            return practicesRequest;
         }
+        else {
+            throw new PracticeValueKindException();
+        }
+
+        actualizar.setTargetValue(practicesRequest.getTarget_value());
+        actualizar.setTargetUnit(practicesRequest.getTarget_unit());
+
+        String operator = practicesRequest.getPractice_operator();
+        if ("gte".equals(operator) || "lte".equals(operator) || "eq".equals(operator)) {
+            actualizar.setPracticeOperator(operator);
+        } else {
+            throw new PracticeOperatorException();
+        }
+
+        actualizar.setDaysPerWeek(practicesRequest.getDays_per_week());
+        actualizar.setIsActive(practicesRequest.getIs_active());
+        Practices guardar = practicesRepository.save(actualizar);
+        return practicesRequest;
+
     }
 
 
@@ -65,15 +92,18 @@ public class PracticesService {
     //3. Aplicar Softs
     //Aplicar Soft
     //@SoftDelete
-    @SoftDelete
+    //@SoftDelete
     @Transactional
-    public Boolean deletePractice(UUID id) {
-        if (practicesRepository.existsById(id)) {
-            practicesRepository.deleteById(id);
+    public Boolean deletePractice(String metodo, UUID id) {
+        Practices practica =  practicesRepository.findById(id).orElseThrow(() -> new NoPracticeException(id));
+        if("soft".equals(metodo)){
+            practica.setIsActive(false);
             return true;
-        }
-        else{
-            return false;
+        } else if("hard".equals(metodo)){
+            practicesRepository.delete(practica);
+            return true;
+        } else{
+            throw new NoValidDeleteException();
         }
     }
 

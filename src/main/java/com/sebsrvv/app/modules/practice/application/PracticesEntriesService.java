@@ -2,6 +2,9 @@ package com.sebsrvv.app.modules.practice.application;
 
 import com.sebsrvv.app.modules.practice.domain.PracticesEntries;
 import com.sebsrvv.app.modules.practice.domain.PracticesEntriesRepository;
+import com.sebsrvv.app.modules.practice.domain.PracticesRepository;
+import com.sebsrvv.app.modules.practice.exception.NoEntryFoundException;
+import com.sebsrvv.app.modules.practice.exception.NoPracticeException;
 import com.sebsrvv.app.modules.practice.web.dto.PracticesEntriesDTO;
 import com.sebsrvv.app.modules.practice.web.dto.PracticesEntriesRequest;
 import com.sebsrvv.app.modules.practice.web.dto.PracticesEntriesResponse;
@@ -19,11 +22,18 @@ public class PracticesEntriesService {
     @Autowired
     private PracticesEntriesRepository practicesEntriesRepository;
 
+    @Autowired
+    private PracticesRepository practicesRepository;
+
     @Transactional
     public PracticesEntriesDTO create(PracticesEntriesDTO dto, UUID practiceId, UUID userId) {
         PracticesEntries entrada = new PracticesEntries();
-        //entrada.setId();
-        entrada.setPracticeId(practiceId);
+        if (practicesRepository.findById(practiceId).isPresent()) {
+            entrada.setPracticeId(practiceId);
+        } else{
+            throw new NoPracticeException(practiceId);
+        }
+
         entrada.setUserId(userId);
         entrada.setLogDate(LocalDate.now());
         entrada.setValue(dto.getValue());
@@ -37,31 +47,21 @@ public class PracticesEntriesService {
     @Transactional
     public PracticesEntriesDTO update(PracticesEntriesDTO body, UUID id) {
         PracticesEntries entrada = practicesEntriesRepository.findById(id)
-                .orElse(null);
+                .orElseThrow(() -> new NoEntryFoundException(id));
 
-        if (entrada != null) {
-            // Actualizar la entidad recuperada
-            entrada.setValue(body.getValue());
-            entrada.setNote(body.getNote());
-            entrada.setAchieved(body.getAchieved());
-            entrada.setLoggedAt(LocalDateTime.now());
+        entrada.setValue(body.getValue());
+        entrada.setNote(body.getNote());
+        entrada.setAchieved(body.getAchieved());
+        entrada.setLoggedAt(LocalDateTime.now());
+        practicesEntriesRepository.save(entrada);
+        return body;
 
-            // Guardar los cambios
-            practicesEntriesRepository.save(entrada);
-
-            return body;
-        } else {
-            return null;
-        }
     }
 
     @Transactional
-    public Boolean  delete(UUID id) {
-        if (practicesEntriesRepository.findById(id).isPresent()) {
-            practicesEntriesRepository.deleteById(id);
-            return true;
-        } else{
-            return false;
-        }
+    public void delete(UUID id) {
+        PracticesEntries entrada = practicesEntriesRepository.findById(id)
+                .orElseThrow(() -> new NoEntryFoundException(id));
+        practicesEntriesRepository.delete(entrada);
     }
 }

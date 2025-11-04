@@ -1,6 +1,7 @@
 package com.sebsrvv.app.modules.practice.domain;
 
 import jakarta.persistence.*;
+import lombok.Builder;
 import org.hibernate.annotations.GenericGenerator;
 import java.util.UUID;
 import java.time.LocalDate;

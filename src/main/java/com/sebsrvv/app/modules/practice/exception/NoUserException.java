@@ -13,12 +13,4 @@ public class NoUserException extends PracticeException {
                 String.format("No se encontró ningún usuario con el ID: %s", userId)
         );
     }
-
-    /*public NoUserException() {
-        super(
-                HttpStatus.NOT_FOUND,
-                "USER_NOT_FOUND",
-                "No se encontró ningún usuario con las credenciales proporcionadas"
-        );
-    }*/
 }

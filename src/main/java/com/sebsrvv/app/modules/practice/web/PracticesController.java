@@ -4,8 +4,10 @@ package com.sebsrvv.app.modules.practice.web;
 import com.sebsrvv.app.modules.practice.application.PracticesEntriesService;
 import com.sebsrvv.app.modules.practice.application.PracticesService;
 import com.sebsrvv.app.modules.practice.application.PracticesWeekStatsService;
+import com.sebsrvv.app.modules.practice.exception.PracticeException;
 import com.sebsrvv.app.modules.practice.web.dto.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.sebsrvv.app.modules.practice.application.PracticesService;
@@ -27,18 +29,18 @@ public class PracticesController {
     @PostMapping("/crear/{id}")
     public ResponseEntity<?> CrearPractica(@RequestBody PracticesDTO Cuerpo, @PathVariable UUID id){
         practicesService.createPractice(Cuerpo,id);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.status(HttpStatus.CREATED).body(Cuerpo);
     }
 
     @PutMapping("/editar/{id}")
     public ResponseEntity<?> EditarPractica(@RequestBody PracticesDTO Cuerpo, @PathVariable UUID id){
-        practicesService.updatePractice(Cuerpo,id);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(practicesService.updatePractice(Cuerpo,id));
     }
 
-    @DeleteMapping("/eliminar/{id}")
-    public ResponseEntity<?> EliminarPractica(@PathVariable UUID id){
-        practicesService.deletePractice(id);
+    //hard o soft
+    @DeleteMapping("/eliminar/{metodo}/{id}")
+    public ResponseEntity<?> EliminarPractica(@PathVariable String metodo, @PathVariable UUID id){
+        practicesService.deletePractice(metodo,id);
         return ResponseEntity.ok().build();
     }
 

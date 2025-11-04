@@ -2,6 +2,7 @@ package com.sebsrvv.app.modules.practice.application;
 
 import com.sebsrvv.app.modules.practice.domain.PracticesWeekStats;
 import com.sebsrvv.app.modules.practice.domain.PracticesWeekStatsRepository;
+import com.sebsrvv.app.modules.practice.exception.NoPracticeException;
 import com.sebsrvv.app.modules.practice.web.dto.PracticesWeekStatsRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -32,17 +33,13 @@ public class PracticesWeekStatsService {
 
     @Transactional
     public void edit(PracticesWeekStatsRequest dto, UUID id) {
-        PracticesWeekStats practicesWeekStats = practicesWeekStatsRepository.findById(id).orElse(null);
-        if (practicesWeekStats == null) {
-            return;
-        } else {
-            practicesWeekStats.setName(dto.getName());
-            practicesWeekStats.setDaysPerWeek(dto.getDaysPerWeek());
-            practicesWeekStats.setLoggedDaysLast7(dto.getLoggedDaysLast7());
-            practicesWeekStats.setLastLogInRange(LocalDate.now());
-            practicesWeekStatsRepository.save(practicesWeekStats);
-            return;
-        }
+        PracticesWeekStats practicesWeekStats = practicesWeekStatsRepository.findById(id).orElseThrow(() -> new NoPracticeException(id));
+        practicesWeekStats.setName(dto.getName());
+        practicesWeekStats.setDaysPerWeek(dto.getDaysPerWeek());
+        practicesWeekStats.setLoggedDaysLast7(dto.getLoggedDaysLast7());
+        practicesWeekStats.setLastLogInRange(LocalDate.now());
+        practicesWeekStatsRepository.save(practicesWeekStats);
+        return;
     }
 
     @Transactional
@@ -51,7 +48,7 @@ public class PracticesWeekStatsService {
             practicesWeekStatsRepository.deleteById(id);
             return true;
         } else {
-            return false;
+            throw new NoPracticeException(id);
         }
     }
 }
