@@ -2,6 +2,8 @@ package com.sebsrvv.app.config;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sebsrvv.app.modules.practice.exception.PracticeException;
+import com.sebsrvv.app.modules.practice.exception.PracticeOperatorException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -234,5 +236,17 @@ public class GlobalExceptionHandler {
             case "invalid_email" -> "Formato de correo inválido";
             default -> "Error en la solicitud o procesamiento";
         };
+    }
+
+    @ExceptionHandler(PracticeOperatorException.class)
+    public ResponseEntity<String> handlePracticeOperatorException(PracticeOperatorException ex) {
+        // Devuelve SOLO el mensaje como string plano
+        return new ResponseEntity<>(ex.getMessage(), ex.getStatus());
+    }
+
+    // Maneja otras excepciones que extiendan de PracticeException
+    @ExceptionHandler(PracticeException.class)
+    public ResponseEntity<String> handlePracticeException(PracticeException ex) {
+        return new ResponseEntity<>(ex.getMessage(), ex.getStatus());
     }
 }

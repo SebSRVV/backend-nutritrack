@@ -1,6 +1,8 @@
 package com.sebsrvv.app.modules.practice.exception;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
 
 public class PracticeException extends RuntimeException {
     private final HttpStatus status;

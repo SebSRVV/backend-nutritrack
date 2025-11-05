@@ -24,6 +24,7 @@ public class PracticesService {
     @Transactional
     public PracticesDTO createPractice(PracticesDTO practicesRequest, UUID id) {
         Practices nuevoPractice = new Practices();
+
         nuevoPractice.setUserId(id);
         nuevoPractice.setName(practicesRequest.getName());
         nuevoPractice.setDescription(practicesRequest.getDescription());
@@ -80,7 +81,6 @@ public class PracticesService {
         actualizar.setIsActive(practicesRequest.getIs_active());
         Practices guardar = practicesRepository.save(actualizar);
         return practicesRequest;
-
     }
 
 

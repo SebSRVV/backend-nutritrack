@@ -6,6 +6,7 @@ import com.sebsrvv.app.modules.practice.application.PracticesService;
 import com.sebsrvv.app.modules.practice.application.PracticesWeekStatsService;
 import com.sebsrvv.app.modules.practice.exception.PracticeException;
 import com.sebsrvv.app.modules.practice.web.dto.*;
+import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +26,26 @@ public class PracticesController {
     private PracticesEntriesService practicesEntriesService;
     @Autowired
     private PracticesWeekStatsService practicesWeekStatsService;
+
+    //@Mock Inicializar las variables
+    //@Test
+    //@Arrange Inicializacion
+    //@Act Actuar
+    //@Assert output
+    @Test
+    @PostMapping("/creartest")
+    public void TestCrear(){
+        PracticesDTO body = new PracticesDTO();
+        body.setName("test");
+        body.setIcon("icon");
+        body.setDescription("description");
+        body.setPractice_operator("a");
+        body.setDays_per_week(2);
+        body.setTarget_unit("meters");
+        body.setValue_kind("boolean");
+        body.setIs_active(true);
+        practicesService.createPractice(body, UUID.fromString("641ef3e1-9d56-4487-8e1e-d89733103ed0"));
+    }
 
     @PostMapping("/crear/{id}")
     public ResponseEntity<?> CrearPractica(@RequestBody PracticesDTO Cuerpo, @PathVariable UUID id){
