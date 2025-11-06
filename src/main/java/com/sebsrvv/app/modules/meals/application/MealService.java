@@ -2,122 +2,114 @@ package com.sebsrvv.app.modules.meals.application;
 
 import com.sebsrvv.app.modules.meals.domain.Meal;
 import com.sebsrvv.app.modules.meals.domain.MealRepository;
-import com.sebsrvv.app.modules.meals.domain.MealType;
+import com.sebsrvv.app.modules.meals.domain.FoodCategory;
+import com.sebsrvv.app.modules.meals.exception.ResourceNotFoundException;
 import com.sebsrvv.app.modules.meals.web.dto.MealRequest;
 import com.sebsrvv.app.modules.meals.web.dto.MealResponse;
-import com.sebsrvv.app.modules.meals.web.mapper.MealMapper;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
 public class MealService {
 
     private final MealRepository mealRepository;
-    private final MealMapper mealMapper;
 
-    public MealService(MealRepository mealRepository, MealMapper mealMapper) {
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    public MealService(MealRepository mealRepository) {
         this.mealRepository = mealRepository;
-        this.mealMapper = mealMapper;
     }
 
-    /**
-     * ✅ Guarda una nueva comida registrada por el usuario.
-     */
+    // ✅ Crear un nuevo meal
     public MealResponse createMeal(MealRequest request) {
-        Meal meal = mealMapper.toEntity(request);
+        Meal meal = new Meal();
+        meal.setUserId(request.getUserId());
+        meal.setName(request.getName());
+        meal.setMealType(request.getMealType());
+        meal.setCalories(request.getCalories());
+        meal.setNote(request.getNote());
+        meal.setLoggedAt(request.getLoggedAt());
 
-        // Validar que la fecha no sea futura
-        if (meal.getLoggedAt().isAfter(LocalDate.now())) {
-            throw new IllegalArgumentException("La fecha de registro no puede ser futura.");
+        // ✅ Si el DTO tiene un categoryId, busca el objeto FoodCategory
+        if (request.getCategoryId() != null) {
+            FoodCategory category = entityManager.getReference(FoodCategory.class, request.getCategoryId());
+            meal.setCategory(category);
         }
 
-        // Validar tipo de comida
-        try {
-            MealType.valueOf(request.mealType().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Tipo de comida inválido. Usa BREAKFAST, LUNCH, DINNER o SNACK.");
-        }
-
-        Meal savedMeal = mealRepository.save(meal);
-        return mealMapper.toResponse(savedMeal);
+        Meal saved = mealRepository.save(meal);
+        return toResponse(saved);
     }
 
-    /**
-     * ✅ Obtiene todas las comidas de un usuario en una fecha específica.
-     */
-    @Transactional(readOnly = true)
-    public List<MealResponse> getMealsByUserAndDate(UUID userId, LocalDate date) {
-        List<Meal> meals = mealRepository.findByUserIdAndLoggedAt(userId, date);
-        return mealMapper.toResponseList(meals);
+    // ✅ Obtener meals de un usuario por fecha
+    public List<MealResponse> getMealsByDate(UUID userId, LocalDate date) {
+        return mealRepository.findByUserIdAndLoggedAt(userId, date)
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
-    /**
-     * ✅ Obtiene todas las comidas de un usuario dentro de un rango de fechas.
-     */
-    @Transactional(readOnly = true)
+    // ✅ Obtener meals en un rango de fechas
     public List<MealResponse> getMealsBetweenDates(UUID userId, LocalDate from, LocalDate to) {
-        List<Meal> meals = mealRepository.findMealsBetweenDates(userId, from, to);
-        return mealMapper.toResponseList(meals);
+        return mealRepository.findMealsBetweenDates(userId, from, to)
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
-    /**
-     * ✅ Actualiza una comida existente.
-     */
-    public MealResponse updateMeal(UUID id, MealRequest request) {
-        Optional<Meal> optionalMeal = mealRepository.findById(id);
-        if (optionalMeal.isEmpty()) {
-            throw new IllegalArgumentException("No se encontró la comida con ID: " + id);
+    // ✅ Actualizar meal existente
+    public MealResponse updateMeal(UUID mealId, MealRequest request) {
+        Meal existing = mealRepository.findById(mealId)
+                .orElseThrow(() -> new ResourceNotFoundException("Meal not found with ID: " + mealId));
+
+        if (request.getName() != null) existing.setName(request.getName());
+        if (request.getMealType() != null) existing.setMealType(request.getMealType());
+        if (request.getCalories() != null) existing.setCalories(request.getCalories());
+        if (request.getNote() != null) existing.setNote(request.getNote());
+        if (request.getLoggedAt() != null) existing.setLoggedAt(request.getLoggedAt());
+
+        // ✅ Actualizar categoría si se envía un nuevo ID
+        if (request.getCategoryId() != null) {
+            FoodCategory category = entityManager.getReference(FoodCategory.class, request.getCategoryId());
+            existing.setCategory(category);
         }
 
-        Meal meal = optionalMeal.get();
-        meal.setName(request.name());
-        meal.setCalories(request.calories());
-        meal.setLoggedAt(request.loggedAt());
-        meal.setNote(request.note());
+        Meal updated = mealRepository.save(existing);
+        return toResponse(updated);
+    }
 
-        // Validar el tipo de comida actualizado
-        try {
-            meal.setMealType(MealType.valueOf(request.mealType().toUpperCase()));
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Tipo de comida inválido. Usa BREAKFAST, LUNCH, DINNER o SNACK.");
+    // ✅ Eliminar un meal
+    public void deleteMeal(UUID mealId) {
+        if (!mealRepository.existsById(mealId)) {
+            throw new ResourceNotFoundException("Meal not found with ID: " + mealId);
+        }
+        mealRepository.deleteById(mealId);
+    }
+
+    // ✅ Conversión manual a DTO
+    private MealResponse toResponse(Meal meal) {
+        MealResponse response = new MealResponse();
+        response.setId(meal.getId());
+        response.setUserId(meal.getUserId());
+        response.setName(meal.getName());
+        response.setMealType(meal.getMealType());
+        response.setCalories(meal.getCalories());
+        response.setNote(meal.getNote());
+        response.setLoggedAt(meal.getLoggedAt());
+
+        // ✅ Devolver solo el ID de la categoría (no el objeto entero)
+        if (meal.getCategory() != null) {
+            response.setCategoryId(meal.getCategory().getId());
         }
 
-        Meal updated = mealRepository.save(meal);
-        return mealMapper.toResponse(updated);
-    }
-
-    /**
-     * ✅ Elimina una comida por su ID.
-     */
-    public void deleteMeal(UUID id) {
-        if (!mealRepository.existsById(id)) {
-            throw new IllegalArgumentException("No existe una comida con ID: " + id);
-        }
-        mealRepository.deleteById(id);
-    }
-
-    /**
-     * ✅ Obtiene los detalles de una comida específica por ID.
-     */
-    @Transactional(readOnly = true)
-    public MealResponse getMealById(UUID id) {
-        Meal meal = mealRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Comida no encontrada con ID: " + id));
-        return mealMapper.toResponse(meal);
-    }
-
-    /**
-     * ✅ Lista todas las comidas registradas (solo para debug o admin).
-     */
-    @Transactional(readOnly = true)
-    public List<MealResponse> getAllMeals() {
-        List<Meal> meals = mealRepository.findAll();
-        return mealMapper.toResponseList(meals);
+        return response;
     }
 }

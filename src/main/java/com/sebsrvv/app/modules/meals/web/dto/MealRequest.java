@@ -1,34 +1,35 @@
 package com.sebsrvv.app.modules.meals.web.dto;
 
-import com.sebsrvv.app.modules.meals.domain.FoodCategory;
 import com.sebsrvv.app.modules.meals.domain.MealType;
+import jakarta.validation.constraints.*;
+import lombok.Data;
 
 import java.time.LocalDate;
 import java.util.UUID;
 
+/**
+ * DTO para crear o actualizar un Meal.
+ */
+@Data
 public class MealRequest {
+
+    @NotNull(message = "El ID de usuario no puede ser nulo.")
     private UUID userId;
-    private LocalDate loggedAt;
+
+    @NotBlank(message = "El nombre de la comida es obligatorio.")
+    private String name;
+
+    @NotNull(message = "El tipo de comida es obligatorio.")
     private MealType mealType;
-    private FoodCategory foodCategory;
-    private int calories;
-    private String description;
 
-    public UUID getUserId() { return userId; }
-    public void setUserId(UUID userId) { this.userId = userId; }
+    @NotNull(message = "Las calorías son obligatorias.")
+    @Positive(message = "Las calorías deben ser un número positivo.")
+    private Double calories;
 
-    public LocalDate getLoggedAt() { return loggedAt; }
-    public void setLoggedAt(LocalDate loggedAt) { this.loggedAt = loggedAt; }
+    private String note; // Campo opcional
 
-    public MealType getMealType() { return mealType; }
-    public void setMealType(MealType mealType) { this.mealType = mealType; }
+    @NotNull(message = "La fecha del registro es obligatoria.")
+    private LocalDate loggedAt;
 
-    public FoodCategory getFoodCategory() { return foodCategory; }
-    public void setFoodCategory(FoodCategory foodCategory) { this.foodCategory = foodCategory; }
-
-    public int getCalories() { return calories; }
-    public void setCalories(int calories) { this.calories = calories; }
-
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+    private UUID categoryId; // Cambiado a UUID para la relación con FoodCategory
 }
