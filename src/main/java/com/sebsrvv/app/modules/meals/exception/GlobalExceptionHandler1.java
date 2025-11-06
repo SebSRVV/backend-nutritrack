@@ -10,7 +10,7 @@ import org.springframework.web.context.request.WebRequest;
 import java.time.LocalDateTime;
 //Centraliza todas las excepciones y devuelve respuestas limpias al cliente.
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler1 {
 
     // Recurso no encontrado
     @ExceptionHandler(ResourceNotFoundException.class)

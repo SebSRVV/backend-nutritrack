@@ -5,12 +5,9 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.util.UUID;
 
-/**
- * Entidad que representa una comida (Meal) registrada por un usuario.
- */
+@Data
 @Entity
 @Table(name = "meals")
-@Data
 public class Meal {
 
     @Id
@@ -18,25 +15,25 @@ public class Meal {
     private UUID id;
 
     @Column(nullable = false)
-    private UUID userId; // ID del usuario (relación lógica con perfil en Supabase)
+    private UUID userId;
 
     @Column(nullable = false)
-    private String name; // Nombre de la comida, por ejemplo: “Desayuno saludable”
+    private String name;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private MealType mealType; // Tipo de comida (BREAKFAST, LUNCH, DINNER, SNACK)
+    private MealType mealType;
 
     @Column(nullable = false)
-    private Double calories; // Calorías totales del plato
+    private Double calories;
 
     @Column
-    private String note; // Nota opcional (por ejemplo, “pollo a la plancha con ensalada”)
+    private String note;
 
     @Column(nullable = false)
-    private LocalDate loggedAt; // Fecha del registro
+    private LocalDate loggedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
-    private FoodCategory category; // Relación con categoría de alimento
+    private MealCategory category; // ✅ ya no usa FoodCategory
 }

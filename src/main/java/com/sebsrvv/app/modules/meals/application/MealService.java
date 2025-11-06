@@ -1,8 +1,8 @@
 package com.sebsrvv.app.modules.meals.application;
 
 import com.sebsrvv.app.modules.meals.domain.Meal;
+import com.sebsrvv.app.modules.meals.domain.MealCategory;
 import com.sebsrvv.app.modules.meals.domain.MealRepository;
-import com.sebsrvv.app.modules.meals.domain.FoodCategory;
 import com.sebsrvv.app.modules.meals.exception.ResourceNotFoundException;
 import com.sebsrvv.app.modules.meals.web.dto.MealRequest;
 import com.sebsrvv.app.modules.meals.web.dto.MealResponse;
@@ -39,9 +39,9 @@ public class MealService {
         meal.setNote(request.getNote());
         meal.setLoggedAt(request.getLoggedAt());
 
-        // ✅ Si el DTO tiene un categoryId, busca el objeto FoodCategory
+        // ✅ Buscar categoría si se envía un ID
         if (request.getCategoryId() != null) {
-            FoodCategory category = entityManager.getReference(FoodCategory.class, request.getCategoryId());
+            MealCategory category = entityManager.getReference(MealCategory.class, request.getCategoryId());
             meal.setCategory(category);
         }
 
@@ -78,7 +78,7 @@ public class MealService {
 
         // ✅ Actualizar categoría si se envía un nuevo ID
         if (request.getCategoryId() != null) {
-            FoodCategory category = entityManager.getReference(FoodCategory.class, request.getCategoryId());
+            MealCategory category = entityManager.getReference(MealCategory.class, request.getCategoryId());
             existing.setCategory(category);
         }
 
@@ -105,9 +105,9 @@ public class MealService {
         response.setNote(meal.getNote());
         response.setLoggedAt(meal.getLoggedAt());
 
-        // ✅ Devolver solo el ID de la categoría (no el objeto entero)
         if (meal.getCategory() != null) {
             response.setCategoryId(meal.getCategory().getId());
+            response.setCategoryName(meal.getCategory().getName());
         }
 
         return response;
