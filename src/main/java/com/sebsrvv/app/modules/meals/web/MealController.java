@@ -18,7 +18,7 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/meals")
-@CrossOrigin(origins = "*") // 🔓 Permitir peticiones desde el front (por ejemplo Insomnia o Supabase)
+@CrossOrigin(origins = "*") // Permitir peticiones desde el front (por ejemplo Insomnia o Supabase)
 public class MealController {
 
     private final MealService mealService;
@@ -27,14 +27,14 @@ public class MealController {
         this.mealService = mealService;
     }
 
-    // ✅ Crear un nuevo meal
+    // Crear un nuevo meal
     @PostMapping
     public ResponseEntity<MealResponse> createMeal(@Valid @RequestBody MealRequest request) {
         MealResponse created = mealService.createMeal(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    // ✅ Obtener meals por usuario y fecha
+    // Obtener meals por usuario y fecha
     @GetMapping("/{userId}/date/{date}")
     public ResponseEntity<List<MealResponse>> getMealsByDate(
             @PathVariable UUID userId,
@@ -43,7 +43,7 @@ public class MealController {
         return ResponseEntity.ok(meals);
     }
 
-    // ✅ Obtener meals entre dos fechas
+    //  Obtener meals entre dos fechas
     @GetMapping("/{userId}/range")
     public ResponseEntity<List<MealResponse>> getMealsBetweenDates(
             @PathVariable UUID userId,
@@ -53,7 +53,7 @@ public class MealController {
         return ResponseEntity.ok(meals);
     }
 
-    // ✅ Actualizar un meal existente
+    //  Actualizar un meal existente
     @PutMapping("/{mealId}")
     public ResponseEntity<MealResponse> updateMeal(
             @PathVariable UUID mealId,
@@ -62,7 +62,7 @@ public class MealController {
         return ResponseEntity.ok(updated);
     }
 
-    // ✅ Eliminar un meal
+    // Eliminar un meal
     @DeleteMapping("/{mealId}")
     public ResponseEntity<Void> deleteMeal(@PathVariable UUID mealId) {
         mealService.deleteMeal(mealId);

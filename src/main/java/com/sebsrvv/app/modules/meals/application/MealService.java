@@ -29,7 +29,7 @@ public class MealService {
         this.mealRepository = mealRepository;
     }
 
-    // ✅ Crear un nuevo meal
+    // Crear un nuevo meal
     public MealResponse createMeal(MealRequest request) {
         Meal meal = new Meal();
         meal.setUserId(request.getUserId());
@@ -39,7 +39,7 @@ public class MealService {
         meal.setNote(request.getNote());
         meal.setLoggedAt(request.getLoggedAt());
 
-        // ✅ Buscar categoría si se envía un ID
+        // Buscar categoría si se envía un ID
         if (request.getCategoryId() != null) {
             MealCategory category = entityManager.getReference(MealCategory.class, request.getCategoryId());
             meal.setCategory(category);
@@ -49,7 +49,7 @@ public class MealService {
         return toResponse(saved);
     }
 
-    // ✅ Obtener meals de un usuario por fecha
+    // Obtener meals de un usuario por fecha
     public List<MealResponse> getMealsByDate(UUID userId, LocalDate date) {
         return mealRepository.findByUserIdAndLoggedAt(userId, date)
                 .stream()
@@ -57,7 +57,7 @@ public class MealService {
                 .collect(Collectors.toList());
     }
 
-    // ✅ Obtener meals en un rango de fechas
+    // Obtener meals en un rango de fechas
     public List<MealResponse> getMealsBetweenDates(UUID userId, LocalDate from, LocalDate to) {
         return mealRepository.findMealsBetweenDates(userId, from, to)
                 .stream()
@@ -65,7 +65,7 @@ public class MealService {
                 .collect(Collectors.toList());
     }
 
-    // ✅ Actualizar meal existente
+    // Actualizar meal existente
     public MealResponse updateMeal(UUID mealId, MealRequest request) {
         Meal existing = mealRepository.findById(mealId)
                 .orElseThrow(() -> new ResourceNotFoundException("Meal not found with ID: " + mealId));
@@ -76,7 +76,7 @@ public class MealService {
         if (request.getNote() != null) existing.setNote(request.getNote());
         if (request.getLoggedAt() != null) existing.setLoggedAt(request.getLoggedAt());
 
-        // ✅ Actualizar categoría si se envía un nuevo ID
+        //Actualizar categoría si se envía un nuevo ID
         if (request.getCategoryId() != null) {
             MealCategory category = entityManager.getReference(MealCategory.class, request.getCategoryId());
             existing.setCategory(category);
@@ -86,7 +86,7 @@ public class MealService {
         return toResponse(updated);
     }
 
-    // ✅ Eliminar un meal
+    // Eliminar un meal
     public void deleteMeal(UUID mealId) {
         if (!mealRepository.existsById(mealId)) {
             throw new ResourceNotFoundException("Meal not found with ID: " + mealId);
@@ -94,7 +94,7 @@ public class MealService {
         mealRepository.deleteById(mealId);
     }
 
-    // ✅ Conversión manual a DTO
+    // Conversión manual a DTO
     private MealResponse toResponse(Meal meal) {
         MealResponse response = new MealResponse();
         response.setId(meal.getId());
