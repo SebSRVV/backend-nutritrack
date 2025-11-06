@@ -18,7 +18,7 @@ public class PracticesWeekStatsService {
     private PracticesWeekStatsRepository practicesWeekStatsRepository;
 
     @Transactional
-    public void create(PracticesWeekStatsRequest body, UUID practiceId, UUID userId) {
+    public PracticesWeekStatsResponse  create(PracticesWeekStatsRequest body, UUID practiceId, UUID userId) {
         PracticesWeekStats practicesWeekStats = new PracticesWeekStats();
         practicesWeekStats.setPracticeId(practiceId);
         practicesWeekStats.setUserId(userId);
@@ -29,17 +29,18 @@ public class PracticesWeekStatsService {
         practicesWeekStats.setFirstLogInRange(LocalDate.now());
         practicesWeekStats.setLastLogInRange(LocalDate.now());
         practicesWeekStatsRepository.save(practicesWeekStats);
+        return Mapping(practicesWeekStats);
     }
 
     @Transactional
-    public void edit(PracticesWeekStatsRequest dto, UUID id) {
+    public PracticesWeekStatsResponse edit(PracticesWeekStatsRequest dto, UUID id) {
         PracticesWeekStats practicesWeekStats = practicesWeekStatsRepository.findById(id).orElseThrow(() -> new NoPracticeException(id));
         practicesWeekStats.setName(dto.getName());
         practicesWeekStats.setDaysPerWeek(dto.getDaysPerWeek());
         practicesWeekStats.setLoggedDaysLast7(dto.getLoggedDaysLast7());
         practicesWeekStats.setLastLogInRange(LocalDate.now());
         practicesWeekStatsRepository.save(practicesWeekStats);
-        return;
+        return Mapping(practicesWeekStats);
     }
 
     @Transactional
@@ -50,5 +51,17 @@ public class PracticesWeekStatsService {
         } else {
             throw new NoPracticeException(id);
         }
+    }
+
+
+    public PracticesWeekStatsResponse Mapping(PracticesWeekStats Sujeto){
+        PracticesWeekStatsResponse Respuesta = new PracticesWeekStatsResponse();
+        Respuesta.setName(Sujeto.getName());
+        Respuesta.setDaysPerWeek(Sujeto.getDaysPerWeek());
+        Respuesta.setLoggedDaysLast7(Sujeto.getLoggedDaysLast7());
+        Respuesta.setLastLogInRange(Sujeto.getLastLogInRange());
+        Respuesta.setFirstLogInRange(Sujeto.getFirstLogInRange());
+        Respuesta.setDaysPerWeek(Sujeto.getDaysPerWeek());
+        return Respuesta;
     }
 }

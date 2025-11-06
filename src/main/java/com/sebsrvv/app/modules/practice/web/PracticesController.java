@@ -6,6 +6,7 @@ import com.sebsrvv.app.modules.practice.application.PracticesService;
 import com.sebsrvv.app.modules.practice.application.PracticesWeekStatsService;
 import com.sebsrvv.app.modules.practice.exception.PracticeException;
 import com.sebsrvv.app.modules.practice.web.dto.*;
+import com.sebsrvv.app.modules.practice.web.tests.PracticesTests;
 import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -26,25 +27,17 @@ public class PracticesController {
     private PracticesEntriesService practicesEntriesService;
     @Autowired
     private PracticesWeekStatsService practicesWeekStatsService;
-
+    @Autowired
+    private PracticesTests practicesTests;
     //@Mock Inicializar las variables
     //@Test
     //@Arrange Inicializacion
     //@Act Actuar
     //@Assert output
-    @Test
+
     @PostMapping("/creartest")
     public void TestCrear(){
-        PracticesDTO body = new PracticesDTO();
-        body.setName("test");
-        body.setIcon("icon");
-        body.setDescription("description");
-        body.setPractice_operator("a");
-        body.setDays_per_week(2);
-        body.setTarget_unit("meters");
-        body.setValue_kind("boolean");
-        body.setIs_active(true);
-        practicesService.createPractice(body, UUID.fromString("641ef3e1-9d56-4487-8e1e-d89733103ed0"));
+        practicesTests.test();
     }
 
     @PostMapping("/crear/{id}")
@@ -68,13 +61,13 @@ public class PracticesController {
     @PostMapping("crearentrada/{practiceId}/{userId}")
     public ResponseEntity<?> CrearEntrada(@RequestBody PracticesEntriesDTO Cuerpo, @PathVariable UUID practiceId, @PathVariable UUID userId){
         practicesEntriesService.create(Cuerpo,practiceId,userId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.status(HttpStatus.CREATED).body(Cuerpo);
     }
 
     @PutMapping("/editarentrada/{id}")
     public ResponseEntity<?> EditarEntrada(@RequestBody PracticesEntriesDTO Cuerpo, @PathVariable UUID id){
-        practicesEntriesService.update(Cuerpo,id);
-        return ResponseEntity.ok().build();
+        //practicesEntriesService.update(Cuerpo,id);
+        return ResponseEntity.ok(practicesEntriesService.update(Cuerpo,id));
     }
 
     @DeleteMapping("borrarentrada/{id}")
@@ -86,13 +79,13 @@ public class PracticesController {
     @PostMapping("crearweek/{practiceId}/{userId}")
     public ResponseEntity<?> CrearWeek(@RequestBody PracticesWeekStatsRequest Cuerpo, @PathVariable UUID practiceId, @PathVariable UUID userId){
         practicesWeekStatsService.create(Cuerpo,practiceId,userId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.status(HttpStatus.CREATED).body(Cuerpo);
     }
 
     @PutMapping("editarweek/{id}")
     public ResponseEntity<?> EditarWeek(@RequestBody PracticesWeekStatsRequest Cuerpo, @PathVariable UUID id){
-        practicesWeekStatsService.edit(Cuerpo,id);
-        return ResponseEntity.ok().build();
+        //practicesWeekStatsService.edit(Cuerpo,id);
+        return ResponseEntity.ok(practicesWeekStatsService.edit(Cuerpo,id));
     }
 
     @DeleteMapping("borrarweek/{id}")
