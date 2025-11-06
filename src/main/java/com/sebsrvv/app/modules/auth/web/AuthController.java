@@ -45,4 +45,9 @@ public class AuthController {
     public void delete(@AuthenticationPrincipal Jwt jwt) {
         service.deleteAccount(jwt);
     }
+
+    @PostMapping("/refresh")
+    public TokenResponse refresh(@RequestBody RefreshRequest r) {
+        return service.refresh(r.refresh_token());
+    }
 }

@@ -104,6 +104,12 @@ public class AuthService {
         profiles.deleteById(userId);
     }
 
+    @Transactional(readOnly = true)
+    public TokenResponse refresh(String refreshToken) {
+        Map<String, Object> resp = supabase.refresh(refreshToken);
+        return toTokenResponse(resp);
+    }
+
     @SuppressWarnings("unchecked")
     private TokenResponse toTokenResponse(Map<String, Object> m) {
         Map<String, Object> user = (Map<String, Object>) m.getOrDefault("user", Map.of());
