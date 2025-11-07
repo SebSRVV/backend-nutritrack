@@ -1,6 +1,6 @@
 package com.sebsrvv.app.modules.auth.web;
 
-import com.sebsrvv.app.modules.auth.application.AuthService;
+import com.sebsrvv.app.modules.auth.AuthService;
 import com.sebsrvv.app.modules.auth.web.dto.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
