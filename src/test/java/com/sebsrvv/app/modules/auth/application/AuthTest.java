@@ -23,7 +23,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AuthService - Pruebas Unitarias")
-class AuthServiceTest {
+class AuthTest {
 
     @Mock private ProfileRepository profileRepository;
     @Mock private SupabaseAuthClient supabaseAuthClient;
