@@ -1,24 +1,22 @@
 package com.sebsrvv.app.modules.auth.exception;
 
-import org.springframework.http.HttpStatus;
+public class AuthException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
 
+    public AuthException() {
+        super("Error de autenticación");
+    }
 
-public abstract class AuthException extends RuntimeException {
-
-    private final HttpStatus status;
-    private final String code;
-
-    protected AuthException(HttpStatus status, String code, String message) {
+    public AuthException(String message) {
         super(message);
-        this.status = status;
-        this.code = code;
     }
 
-    public HttpStatus getStatus() {
-        return status;
+    public AuthException(String message, Throwable cause) {
+        super(message, cause);
     }
 
-    public String getCode() {
-        return code;
+    public AuthException(Throwable cause) {
+        super(cause);
     }
 }
+

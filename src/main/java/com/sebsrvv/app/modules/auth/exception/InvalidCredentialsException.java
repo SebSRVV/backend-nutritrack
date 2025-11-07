@@ -1,9 +1,21 @@
 package com.sebsrvv.app.modules.auth.exception;
 
-import org.springframework.http.HttpStatus;
+public class InvalidCredentialsException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
 
-public class InvalidCredentialsException extends AuthException {
     public InvalidCredentialsException() {
-        super(HttpStatus.UNAUTHORIZED, "invalid_credentials", "Las credenciales proporcionadas no son validas");
+        super("Credenciales inválidas");
+    }
+
+    public InvalidCredentialsException(String message) {
+        super(message);
+    }
+
+    public InvalidCredentialsException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public InvalidCredentialsException(Throwable cause) {
+        super(cause);
     }
 }
