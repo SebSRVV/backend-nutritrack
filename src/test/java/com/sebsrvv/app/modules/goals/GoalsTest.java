@@ -2,30 +2,27 @@ package com.sebsrvv.app.modules.goals;
 
 import com.sebsrvv.app.modules.goals.web.GoalController;
 import com.sebsrvv.app.modules.goals.application.GoalService;
-import com.sebsrvv.app.modules.goals.dto.GoalRequest;
-import com.sebsrvv.app.modules.goals.dto.GoalResponse;
-import com.sebsrvv.app.modules.goals.dto.GoalProgressRequest;
-import com.sebsrvv.app.modules.goals.dto.GoalProgressResponse;
+import com.sebsrvv.app.modules.goals.web.dto.GoalRequest;
+import com.sebsrvv.app.modules.goals.web.dto.GoalResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-import java.util.Map;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-/**
- * Ajusta los paquetes de dto si en tu proyecto están en otro namespace
- * (por ejemplo com.sebsrvv.app.modules.reports...); aquí usé .modules.goals.dto
- * para mayor claridad.
- */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("GoalController - Pruebas Unitarias")
 class GoalsTest {
@@ -37,102 +34,122 @@ class GoalsTest {
     private GoalController controller;
 
     @Test
-    @DisplayName("POST /api/goals crea la meta y la retorna dentro de 'data'")
-    void createGoal_ReturnsOk_WithWrappedBody() {
+    @DisplayName("POST /api/goals crea la meta y retorna 201 con GoalResponse")
+    void createGoal_Returns201_WithGoalResponse() {
         // Arrange
         UUID userId = UUID.fromString("00000000-0000-0000-0000-000000000010");
 
-        GoalRequest request = new GoalRequest();
-        request.setUserId(userId);
-        request.setCalories(2200);
-        request.setProtein(150);
-        request.setCarbs(250);
-        request.setFat(70);
+        GoalRequest req = new GoalRequest();
+        req.setGoal_name("Beber agua");
+        req.setDescription("2L por día");
+        req.setWeekly_target(7);
+        req.setIs_active(true);
+        req.setCategory_id(1);
+        req.setValue_type("QUANTITATIVE");
+        req.setUnit("ml");
+        req.setStart_date(LocalDate.of(2025, 1, 1));
+        req.setEnd_date(LocalDate.of(2025, 12, 31));
+        req.setTarget_value(new BigDecimal("2000"));
 
         GoalResponse mockResp = new GoalResponse();
         mockResp.setId(UUID.fromString("00000000-0000-0000-0000-000000000011"));
-        mockResp.setUserId(userId);
-        mockResp.setCalories(2200);
-        mockResp.setProtein(150);
-        mockResp.setCarbs(250);
-        mockResp.setFat(70);
+        mockResp.setGoal_name(req.getGoal_name());
+        mockResp.setDescription(req.getDescription());
+        mockResp.setWeekly_target(req.getWeekly_target());
+        mockResp.setIs_active(req.getIs_active());
+        mockResp.setCategory_id(req.getCategory_id());
+        mockResp.setValue_type(req.getValue_type());
+        mockResp.setUnit(req.getUnit());
+        mockResp.setStart_date(req.getStart_date());
+        mockResp.setEnd_date(req.getEnd_date());
+        mockResp.setTarget_value(req.getTarget_value());
 
-        when(goalService.create(any(GoalRequest.class))).thenReturn(mockResp);
+        when(goalService.createGoal(any(GoalRequest.class), eq(userId))).thenReturn(mockResp);
 
         // Act
-        ResponseEntity<Map<String, Object>> response = controller.createGoal(request);
+        ResponseEntity<GoalResponse> response = controller.create(userId, req);
 
         // Assert
         assertThat(response).isNotNull();
-        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getId()).isEqualTo(mockResp.getId());
+        assertThat(response.getBody().getGoal_name()).isEqualTo("Beber agua");
 
-        Map<String, Object> body = response.getBody();
-        assertThat(body.get("status")).isEqualTo("success");
-        assertThat(body.get("timestamp")).isNotNull();
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> data = (Map<String, Object>) body.get("data");
-        assertThat(data)
-                .containsEntry("userId", userId.toString())
-                .containsEntry("calories", 2200)
-                .containsEntry("protein", 150)
-                .containsEntry("carbs", 250)
-                .containsEntry("fat", 70);
-
-        verify(goalService).create(any(GoalRequest.class));
+        verify(goalService).createGoal(any(GoalRequest.class), eq(userId));
         verifyNoMoreInteractions(goalService);
     }
 
     @Test
-    @DisplayName("POST /api/goals/progress retorna progreso dentro de 'data'")
-    void getProgress_ReturnsOk_WithWrappedBody() {
+    @DisplayName("GET /api/goals?userId=... retorna lista vacía cuando no hay metas")
+    void listGoals_ReturnsEmptyList_WhenNoGoals() {
         // Arrange
         UUID userId = UUID.fromString("00000000-0000-0000-0000-000000000012");
-
-        GoalProgressRequest request = new GoalProgressRequest();
-        request.setUserId(userId);
-        // Si tu request tiene más campos (fecha rango, etc.), asígnalos aquí
-
-        GoalProgressResponse progress = new GoalProgressResponse();
-        // Ajusta los setters según tu DTO real:
-        // p.ej. progress.setCaloriesPercent(0.82), setProteinGramsRemaining(20), etc.
-        progress.setCaloriesConsumed(1800);
-        progress.setCaloriesGoal(2200);
-        progress.setProteinConsumed(120);
-        progress.setProteinGoal(150);
-        progress.setCarbsConsumed(210);
-        progress.setCarbsGoal(250);
-        progress.setFatConsumed(60);
-        progress.setFatGoal(70);
-
-        when(goalService.getProgress(any(GoalProgressRequest.class))).thenReturn(progress);
+        when(goalService.listGoals(eq(userId))).thenReturn(List.of());
 
         // Act
-        ResponseEntity<Map<String, Object>> response = controller.getProgress(request);
+        ResponseEntity<List<GoalResponse>> response = controller.list(userId);
 
         // Assert
         assertThat(response).isNotNull();
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody()).isEmpty();
 
-        Map<String, Object> body = response.getBody();
-        assertThat(body.get("status")).isEqualTo("success");
-        assertThat(body.get("timestamp")).isNotNull();
+        verify(goalService).listGoals(userId);
+        verifyNoMoreInteractions(goalService);
+    }
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> data = (Map<String, Object>) body.get("data");
-        assertThat(data)
-                .containsEntry("caloriesConsumed", 1800)
-                .containsEntry("caloriesGoal", 2200)
-                .containsEntry("proteinConsumed", 120)
-                .containsEntry("proteinGoal", 150)
-                .containsEntry("carbsConsumed", 210)
-                .containsEntry("carbsGoal", 250)
-                .containsEntry("fatConsumed", 60)
-                .containsEntry("fatGoal", 70);
+    @Test
+    @DisplayName("PUT /api/goals/{goalId}?userId=... actualiza y retorna GoalResponse")
+    void putGoal_ReturnsOk_WithUpdatedGoal() {
+        // Arrange
+        UUID goalId = UUID.fromString("00000000-0000-0000-0000-000000000020");
+        UUID userId = UUID.fromString("00000000-0000-0000-0000-000000000021");
 
-        verify(goalService).getProgress(any(GoalProgressRequest.class));
+        GoalRequest req = new GoalRequest();
+        req.setGoal_name("Beber agua (editado)");
+        req.setWeekly_target(6);
+
+        GoalResponse updated = new GoalResponse();
+        updated.setId(goalId);
+        updated.setGoal_name(req.getGoal_name());
+        updated.setWeekly_target(req.getWeekly_target());
+
+        when(goalService.putOrPatchGoal(eq(goalId), any(GoalRequest.class), eq(userId)))
+                .thenReturn(updated);
+
+        // Act
+        ResponseEntity<GoalResponse> response = controller.put(goalId, userId, req);
+
+        // Assert
+        assertThat(response).isNotNull();
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getId()).isEqualTo(goalId);
+        assertThat(response.getBody().getGoal_name()).isEqualTo("Beber agua (editado)");
+        assertThat(response.getBody().getWeekly_target()).isEqualTo(6);
+
+        verify(goalService).putOrPatchGoal(eq(goalId), any(GoalRequest.class), eq(userId));
+        verifyNoMoreInteractions(goalService);
+    }
+
+    @Test
+    @DisplayName("DELETE /api/goals/{goalId}?mode=soft&userId=... realiza soft delete y retorna 200")
+    void deleteGoal_Soft_ReturnsOk() {
+        // Arrange
+        UUID goalId = UUID.fromString("00000000-0000-0000-0000-000000000030");
+        UUID userId = UUID.fromString("00000000-0000-0000-0000-000000000031");
+
+        // Act
+        ResponseEntity<?> response = controller.delete(goalId, userId, "soft");
+
+        // Assert
+        assertThat(response).isNotNull();
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(String.valueOf(response.getBody())).contains("\"status\":200");
+
+        verify(goalService).softDelete(goalId, userId);
         verifyNoMoreInteractions(goalService);
     }
 }
