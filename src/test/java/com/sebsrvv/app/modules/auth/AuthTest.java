@@ -1,4 +1,4 @@
-package com.sebsrvv.app.modules.auth.application;
+package com.sebsrvv.app.modules.auth;
 
 import com.sebsrvv.app.modules.auth.domain.ProfileRepository;
 import com.sebsrvv.app.modules.auth.domain.UserProfile;
