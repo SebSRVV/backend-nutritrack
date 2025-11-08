@@ -3,7 +3,7 @@ package com.sebsrvv.app.modules.meals.application;
 import com.sebsrvv.app.modules.meals.domain.Meal;
 import com.sebsrvv.app.modules.meals.domain.MealCategory;
 import com.sebsrvv.app.modules.meals.domain.MealRepository;
-import com.sebsrvv.app.modules.meals.exception.ResourceNotFoundException;
+import com.sebsrvv.app.modules.meals.exception.*;
 import com.sebsrvv.app.modules.meals.web.dto.MealRequest;
 import com.sebsrvv.app.modules.meals.web.dto.MealResponse;
 import jakarta.persistence.EntityManager;
@@ -31,6 +31,17 @@ public class MealService {
 
     // Crear un nuevo meal
     public MealResponse createMeal(MealRequest request) {
+        // Validaciones básicas
+        if (request.getCalories() == null || request.getCalories() <= 0) {
+            throw new InvalidMealDataException("Las calorías deben ser un número positivo.");
+        }
+
+        // Verificar si ya existe un meal con el mismo nombre y fecha para el usuario
+        List<Meal> existing = mealRepository.findByUserIdAndLoggedAt(request.getUserId(), request.getLoggedAt());
+        if (existing.stream().anyMatch(m -> m.getName().equalsIgnoreCase(request.getName()))) {
+            throw new MealAlreadyExistsException("El meal ya existe para esta fecha y usuario.");
+        }
+
         Meal meal = new Meal();
         meal.setUserId(request.getUserId());
         meal.setName(request.getName());
@@ -41,7 +52,12 @@ public class MealService {
 
         // Buscar categoría si se envía un ID
         if (request.getCategoryId() != null) {
-            MealCategory category = entityManager.getReference(MealCategory.class, request.getCategoryId());
+            MealCategory category;
+            try {
+                category = entityManager.getReference(MealCategory.class, request.getCategoryId());
+            } catch (Exception e) {
+                throw new CategoryNotFoundException("Categoría no encontrada con ID: " + request.getCategoryId());
+            }
             meal.setCategory(category);
         }
 
@@ -51,34 +67,45 @@ public class MealService {
 
     // Obtener meals de un usuario por fecha
     public List<MealResponse> getMealsByDate(UUID userId, LocalDate date) {
-        return mealRepository.findByUserIdAndLoggedAt(userId, date)
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        List<Meal> meals = mealRepository.findByUserIdAndLoggedAt(userId, date);
+        if (meals.isEmpty()) {
+            throw new MealNotFoundException("No se encontraron meals para esta fecha.");
+        }
+        return meals.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     // Obtener meals en un rango de fechas
     public List<MealResponse> getMealsBetweenDates(UUID userId, LocalDate from, LocalDate to) {
-        return mealRepository.findMealsBetweenDates(userId, from, to)
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        List<Meal> meals = mealRepository.findMealsBetweenDates(userId, from, to);
+        if (meals.isEmpty()) {
+            throw new MealNotFoundException("No se encontraron meals en el rango de fechas.");
+        }
+        return meals.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     // Actualizar meal existente
     public MealResponse updateMeal(UUID mealId, MealRequest request) {
         Meal existing = mealRepository.findById(mealId)
-                .orElseThrow(() -> new ResourceNotFoundException("Meal not found with ID: " + mealId));
+                .orElseThrow(() -> new MealNotFoundException("Meal no encontrado con ID: " + mealId));
 
         if (request.getName() != null) existing.setName(request.getName());
         if (request.getMealType() != null) existing.setMealType(request.getMealType());
-        if (request.getCalories() != null) existing.setCalories(request.getCalories());
+        if (request.getCalories() != null) {
+            if (request.getCalories() <= 0)
+                throw new InvalidMealDataException("Las calorías deben ser un número positivo.");
+            existing.setCalories(request.getCalories());
+        }
         if (request.getNote() != null) existing.setNote(request.getNote());
         if (request.getLoggedAt() != null) existing.setLoggedAt(request.getLoggedAt());
 
-        //Actualizar categoría si se envía un nuevo ID
+        // Actualizar categoría si se envía un nuevo ID
         if (request.getCategoryId() != null) {
-            MealCategory category = entityManager.getReference(MealCategory.class, request.getCategoryId());
+            MealCategory category;
+            try {
+                category = entityManager.getReference(MealCategory.class, request.getCategoryId());
+            } catch (Exception e) {
+                throw new CategoryNotFoundException("Categoría no encontrada con ID: " + request.getCategoryId());
+            }
             existing.setCategory(category);
         }
 
@@ -88,10 +115,9 @@ public class MealService {
 
     // Eliminar un meal
     public void deleteMeal(UUID mealId) {
-        if (!mealRepository.existsById(mealId)) {
-            throw new ResourceNotFoundException("Meal not found with ID: " + mealId);
-        }
-        mealRepository.deleteById(mealId);
+        Meal meal = mealRepository.findById(mealId)
+                .orElseThrow(() -> new MealNotFoundException("Meal no encontrado con ID: " + mealId));
+        mealRepository.delete(meal);
     }
 
     // Conversión manual a DTO

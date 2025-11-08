@@ -35,5 +35,6 @@ public class Meal {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
-    private MealCategory category; // ✅ ya no usa FoodCategory
+    private MealCategory category;
 }
+
