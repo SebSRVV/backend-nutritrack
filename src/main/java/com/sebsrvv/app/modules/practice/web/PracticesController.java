@@ -6,7 +6,6 @@ import com.sebsrvv.app.modules.practice.application.PracticesService;
 import com.sebsrvv.app.modules.practice.application.PracticesWeekStatsService;
 import com.sebsrvv.app.modules.practice.exception.PracticeException;
 import com.sebsrvv.app.modules.practice.web.dto.*;
-import com.sebsrvv.app.modules.practice.web.tests.PracticesTests;
 import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -27,18 +26,12 @@ public class PracticesController {
     private PracticesEntriesService practicesEntriesService;
     @Autowired
     private PracticesWeekStatsService practicesWeekStatsService;
-    @Autowired
-    private PracticesTests practicesTests;
     //@Mock Inicializar las variables
     //@Test
     //@Arrange Inicializacion
     //@Act Actuar
     //@Assert output
 
-    @PostMapping("/creartest")
-    public void TestCrear(){
-        practicesTests.test();
-    }
 
     @PostMapping("/crear/{id}")
     public ResponseEntity<?> CrearPractica(@RequestBody PracticesDTO Cuerpo, @PathVariable UUID id){

@@ -1,10 +1,11 @@
 package com.sebsrvv.app.modules.practice.application;
 
+import com.sebsrvv.app.modules.practice.domain.Practices;
 import com.sebsrvv.app.modules.practice.domain.PracticesEntries;
 import com.sebsrvv.app.modules.practice.domain.PracticesEntriesRepository;
-import com.sebsrvv.app.modules.practice.domain.PracticesWeekStatsRepository;
+import com.sebsrvv.app.modules.practice.domain.PracticesRepository;
 import com.sebsrvv.app.modules.practice.web.dto.PracticesEntriesDTO;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -14,7 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Date;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -24,9 +25,15 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 @DisplayName("PracticesEntries - Pruebas Unitarias")
 public class PracticeEntriesServiceTests {
-    @Mock private PracticesEntriesRepository practicesEntriesRepository;
 
-    @InjectMocks private PracticesEntriesService practicesEntriesService;
+    @Mock
+    private PracticesEntriesRepository practicesEntriesRepository;
+
+    @Mock
+    private PracticesRepository practicesRepository;  // ✅ Faltaba este mock
+
+    @InjectMocks
+    private PracticesEntriesService practicesEntriesService;
 
     UUID id = UUID.randomUUID();
     UUID practiceId = UUID.fromString("11388864-0795-4130-923c-3cc42be36a26");
@@ -35,63 +42,104 @@ public class PracticeEntriesServiceTests {
     BigDecimal value = new BigDecimal("100");
     String note = "nota";
     Boolean achieved = false;
-    LocalDate loggedAt = LocalDate.now();
 
     @Test
     @DisplayName("Crea una entrada exitosamente")
     public void createPracticeEntries() {
+        // Arrange
         PracticesEntriesDTO practicesEntries = new PracticesEntriesDTO();
-        //practicesEntries.setPracticeId(practiceId);
-        //practicesEntries.setUserId(userId);
-        //practicesEntries.setLogDate(logDate);
         practicesEntries.setValue(value);
         practicesEntries.setNote(note);
         practicesEntries.setAchieved(achieved);
 
-        //Act
-        PracticesEntriesDTO respuesta = practicesEntriesService.create(practicesEntries,practiceId,userId);
+        Practices mockPractice = new Practices();
+        mockPractice.setId(practiceId);
+        when(practicesRepository.findById(practiceId)).thenReturn(Optional.of(mockPractice));
 
-        //Assert
+        PracticesEntries mockEntry = new PracticesEntries();
+        mockEntry.setId(id);
+        mockEntry.setPracticeId(practiceId);
+        mockEntry.setUserId(userId);
+        mockEntry.setLogDate(LocalDate.now());
+        mockEntry.setValue(value);
+        mockEntry.setNote(note);
+        mockEntry.setAchieved(achieved);
+        mockEntry.setLoggedAt(LocalDateTime.now());
+
+        when(practicesEntriesRepository.save(any(PracticesEntries.class))).thenReturn(mockEntry);
+
+        // Act
+        PracticesEntriesDTO respuesta = practicesEntriesService.create(practicesEntries, practiceId, userId);
+
+        // Assert
         assertThat(respuesta).isNotNull();
-        assertThat(respuesta.getLoggedAt()).isEqualTo(practicesEntries.getLoggedAt());
         assertThat(respuesta.getValue()).isEqualTo(value);
         assertThat(respuesta.getNote()).isEqualTo(note);
         assertThat(respuesta.getAchieved()).isEqualTo(achieved);
-        assertThat(respuesta.getLoggedAt()).isEqualTo(loggedAt);
+
+        verify(practicesRepository, times(1)).findById(practiceId);
+        verify(practicesEntriesRepository, times(1)).save(any(PracticesEntries.class));
     }
 
     @Test
     @DisplayName("Edita una entrada exitosamente")
     public void editPracticeEntries() {
+        // Arrange
+        String nuevaNota = "Prueba";
+        Boolean nuevoAchieved = true;
+
         PracticesEntriesDTO practicesEntries = new PracticesEntriesDTO();
-        //practicesEntries.setPracticeId(practiceId);
-        //practicesEntries.setUserId(userId);
-        //practicesEntries.setLogDate(logDate);
         practicesEntries.setValue(value);
-        practicesEntries.setNote("Prueba");
-        practicesEntries.setAchieved(true);
+        practicesEntries.setNote(nuevaNota);
+        practicesEntries.setAchieved(nuevoAchieved);
 
-        //Act
-        PracticesEntriesDTO respuesta = practicesEntriesService.update(practicesEntries,id);
+        PracticesEntries existingEntry = new PracticesEntries();
+        existingEntry.setId(id);
+        existingEntry.setPracticeId(practiceId);
+        existingEntry.setUserId(userId);
+        existingEntry.setLogDate(LocalDate.now());
+        existingEntry.setValue(new BigDecimal("50"));
+        existingEntry.setNote("Nota original");
+        existingEntry.setAchieved(false);
+        existingEntry.setLoggedAt(LocalDateTime.now());
 
-        //Assert
+        when(practicesEntriesRepository.findById(id)).thenReturn(Optional.of(existingEntry));
+        when(practicesEntriesRepository.save(any(PracticesEntries.class))).thenReturn(existingEntry);
+
+        // Act
+        PracticesEntriesDTO respuesta = practicesEntriesService.update(practicesEntries, id);
+
+        // Assert
         assertThat(respuesta).isNotNull();
-        assertThat(respuesta.getLoggedAt()).isEqualTo(practicesEntries.getLoggedAt());
         assertThat(respuesta.getValue()).isEqualTo(value);
-        assertThat(respuesta.getNote()).isEqualTo(note);
-        assertThat(respuesta.getAchieved()).isEqualTo(achieved);
-        assertThat(respuesta.getLoggedAt()).isEqualTo(loggedAt);
+        assertThat(respuesta.getNote()).isEqualTo(nuevaNota);  // ✅ Verificar el nuevo valor
+        assertThat(respuesta.getAchieved()).isEqualTo(nuevoAchieved);  // ✅ Verificar el nuevo valor
+
+        verify(practicesEntriesRepository, times(1)).findById(id);
+        verify(practicesEntriesRepository, times(1)).save(any(PracticesEntries.class));
     }
 
     @Test
-    @DisplayName("Borra una entrada")
+    @DisplayName("Borra una entrada exitosamente")
     public void borraPracticeEntries() {
-        //Act
+        // Arrange
+        PracticesEntries existingEntry = new PracticesEntries();
+        existingEntry.setId(id);
+        existingEntry.setPracticeId(practiceId);
+        existingEntry.setUserId(userId);
+        existingEntry.setLogDate(LocalDate.now());
+        existingEntry.setValue(value);
+        existingEntry.setNote(note);
+        existingEntry.setAchieved(achieved);
+        existingEntry.setLoggedAt(LocalDateTime.now());
+
+        when(practicesEntriesRepository.findById(id)).thenReturn(Optional.of(existingEntry));
+
+        // Act
         practicesEntriesService.delete(id);
 
-        //Assert
-
-        assertThat(practicesEntriesRepository.findById(id)).isNull();
-        verify(practicesEntriesRepository).deleteById(id);
+        // Assert
+        verify(practicesEntriesRepository, times(1)).findById(id);
+        verify(practicesEntriesRepository, times(1)).delete(any(PracticesEntries.class));
     }
 }
