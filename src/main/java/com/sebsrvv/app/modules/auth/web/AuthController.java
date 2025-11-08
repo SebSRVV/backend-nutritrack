@@ -6,6 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import com.sebsrvv.app.modules.auth.exception.DeleteAccountException;
+import com.sebsrvv.app.modules.auth.exception.DeleteAccountResponse;
 
 import java.util.Map;
 
@@ -34,6 +36,7 @@ public class AuthController {
         return service.me(jwt);
     }
 
+
     @PatchMapping("/profile")
     public UpdateProfileResponse update(@AuthenticationPrincipal Jwt jwt,
                                         @RequestBody UpdateProfileRequest r) {
@@ -49,5 +52,16 @@ public class AuthController {
     @PostMapping("/refresh")
     public TokenResponse refresh(@RequestBody RefreshRequest r) {
         return service.refresh(r.refresh_token());
+    }
+
+    @DeleteMapping("/delete")
+    public DeleteAccountResponse delete(@AuthenticationPrincipal Jwt jwt,
+                                        @RequestBody DeleteAccountRequest r) {
+        if (!r.confirm()) {
+            throw new DeleteAccountException("Debe confirmar la eliminación de la cuenta antes de continuar.");
+        }
+
+        service.deleteAccount(jwt);
+        return new DeleteAccountResponse("Tu cuenta ha sido eliminada correctamente.");
     }
 }
