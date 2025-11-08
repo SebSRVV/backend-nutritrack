@@ -27,7 +27,7 @@ public class MealController {
         this.mealService = mealService;
     }
 
-    // 🟢 Crear un nuevo meal para un usuario
+    // Crear un nuevo meal para un usuario
     @PostMapping
     public ResponseEntity<MealResponse> createMeal(
             @PathVariable UUID userId,
@@ -38,7 +38,7 @@ public class MealController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    // 🔵 Obtener meals de un usuario en una fecha específica
+    // Obtener meals de un usuario en una fecha específica
     @GetMapping
     public ResponseEntity<List<MealResponse>> getMealsByDate(
             @PathVariable UUID userId,
@@ -48,7 +48,7 @@ public class MealController {
         return ResponseEntity.ok(meals);
     }
 
-    // 🟣 Obtener meals de un usuario entre dos fechas
+    //  Obtener meals de un usuario entre dos fechas
     @GetMapping("/range")
     public ResponseEntity<List<MealResponse>> getMealsBetweenDates(
             @PathVariable UUID userId,
@@ -59,7 +59,7 @@ public class MealController {
         return ResponseEntity.ok(meals);
     }
 
-    // 🟡 Actualizar un meal existente
+    // Actualizar un meal existente
     @PutMapping("/{mealId}")
     public ResponseEntity<MealResponse> updateMeal(
             @PathVariable UUID userId,
@@ -71,7 +71,7 @@ public class MealController {
         return ResponseEntity.ok(updated);
     }
 
-    // 🔴 Eliminar un meal
+    // Eliminar un meal
     @DeleteMapping("/{mealId}")
     public ResponseEntity<String> deleteMeal(
             @PathVariable UUID userId,
