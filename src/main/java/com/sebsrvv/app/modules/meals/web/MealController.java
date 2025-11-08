@@ -14,11 +14,11 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Controlador REST para gestionar las comidas (Meals).
+ * Controlador REST para gestionar las comidas (Meals) asociadas a un usuario.
  */
 @RestController
-@RequestMapping("/api/meals")
-@CrossOrigin(origins = "*") // Permitir peticiones desde el front (por ejemplo Insomnia o Supabase)
+@RequestMapping("/api/users/{userId}/meals")
+@CrossOrigin(origins = "*") // Permite peticiones desde el front o Insomnia
 public class MealController {
 
     private final MealService mealService;
@@ -27,45 +27,59 @@ public class MealController {
         this.mealService = mealService;
     }
 
-    // Crear un nuevo meal
+    // 🟢 Crear un nuevo meal para un usuario
     @PostMapping
-    public ResponseEntity<MealResponse> createMeal(@Valid @RequestBody MealRequest request) {
+    public ResponseEntity<MealResponse> createMeal(
+            @PathVariable UUID userId,
+            @Valid @RequestBody MealRequest request) {
+
+        request.setUserId(userId); // Asigna el ID del usuario al request
         MealResponse created = mealService.createMeal(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    // Obtener meals por usuario y fecha
-    @GetMapping("/{userId}/date/{date}")
+    // 🔵 Obtener meals de un usuario en una fecha específica
+    @GetMapping
     public ResponseEntity<List<MealResponse>> getMealsByDate(
             @PathVariable UUID userId,
-            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+
         List<MealResponse> meals = mealService.getMealsByDate(userId, date);
         return ResponseEntity.ok(meals);
     }
 
-    //  Obtener meals entre dos fechas
-    @GetMapping("/{userId}/range")
+    // 🟣 Obtener meals de un usuario entre dos fechas
+    @GetMapping("/range")
     public ResponseEntity<List<MealResponse>> getMealsBetweenDates(
             @PathVariable UUID userId,
             @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+
         List<MealResponse> meals = mealService.getMealsBetweenDates(userId, from, to);
         return ResponseEntity.ok(meals);
     }
 
-    //  Actualizar un meal existente
+    // 🟡 Actualizar un meal existente
     @PutMapping("/{mealId}")
     public ResponseEntity<MealResponse> updateMeal(
+            @PathVariable UUID userId,
             @PathVariable UUID mealId,
             @Valid @RequestBody MealRequest request) {
+
+        request.setUserId(userId);
         MealResponse updated = mealService.updateMeal(mealId, request);
         return ResponseEntity.ok(updated);
     }
 
-    // Eliminar un meal
+    // 🔴 Eliminar un meal
     @DeleteMapping("/{mealId}")
-    public ResponseEntity<Void> deleteMeal(@PathVariable UUID mealId) {
+    public ResponseEntity<String> deleteMeal(
+            @PathVariable UUID userId,
+            @PathVariable UUID mealId) {
+
         mealService.deleteMeal(mealId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.status(HttpStatus.NO_CONTENT)
+                .body("Meal eliminado correctamente");
     }
 }
+

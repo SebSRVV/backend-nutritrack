@@ -7,6 +7,8 @@ import com.sebsrvv.app.modules.practice.exception.PracticeOperatorException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -30,19 +32,26 @@ import org.springframework.web.server.ResponseStatusException;
 import java.sql.SQLException;
 import java.util.*;
 
-/** Manejador global de errores comunes */
+/**
+ * Manejador global de errores comunes en toda la aplicación.
+ * No altera la lógica de negocio, solo mejora trazabilidad y manejo seguro.
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     /** 400 - Validación */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex, HttpServletRequest req) {
         List<ApiError.FieldViolation> v = new ArrayList<>();
-        ex.getBindingResult().getAllErrors().forEach(err -> {
-            String f = (err instanceof FieldError fe) ? fe.getField() : err.getObjectName();
-            Object r = (err instanceof FieldError fe) ? fe.getRejectedValue() : null;
-            v.add(new ApiError.FieldViolation(f, err.getDefaultMessage(), r));
-        });
+        if (ex.getBindingResult() != null) {
+            ex.getBindingResult().getAllErrors().forEach(err -> {
+                String f = (err instanceof FieldError fe) ? fe.getField() : err.getObjectName();
+                Object r = (err instanceof FieldError fe) ? fe.getRejectedValue() : null;
+                v.add(new ApiError.FieldViolation(f, err.getDefaultMessage(), r));
+            });
+        }
         return build(HttpStatus.BAD_REQUEST, "validation_error", "Los datos enviados no son válidos", req, v);
     }
 
@@ -95,15 +104,17 @@ public class GlobalExceptionHandler {
     }
 
     /** 401 - Credenciales inválidas */
-    @ExceptionHandler({ BadCredentialsException.class, AuthenticationException.class })
+    @ExceptionHandler({BadCredentialsException.class, AuthenticationException.class})
     public ResponseEntity<ApiError> handleAuth(Exception ex, HttpServletRequest req) {
-        return build(HttpStatus.UNAUTHORIZED, "invalid_credentials", "Credenciales inválidas o no autenticado", req, null);
+        return build(HttpStatus.UNAUTHORIZED, "invalid_credentials",
+                "Credenciales inválidas o no autenticado", req, null);
     }
 
     /** 403 - Acceso denegado */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex, HttpServletRequest req) {
-        return build(HttpStatus.FORBIDDEN, "access_denied", "No tienes permisos para este recurso", req, null);
+        return build(HttpStatus.FORBIDDEN, "access_denied",
+                "No tienes permisos para este recurso", req, null);
     }
 
     /** 422 - Violaciones de integridad */
@@ -112,11 +123,13 @@ public class GlobalExceptionHandler {
         SQLException sql = findSqlException(ex);
         String state = sql != null ? sql.getSQLState() : null;
         String constraint = sql != null ? extractConstraint(sql.getMessage()) : null;
+
         if ("23505".equals(state)) {
             String code = mapConstraintToCode(constraint);
             String msg = translateMessage(code);
             return build(HttpStatus.UNPROCESSABLE_ENTITY, code, msg, req, null);
         }
+
         return build(HttpStatus.UNPROCESSABLE_ENTITY, "data_integrity_violation",
                 "Violación de integridad de datos", req, null);
     }
@@ -124,6 +137,7 @@ public class GlobalExceptionHandler {
     /** 500 - Error DB genérico */
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<ApiError> handleDB(DataAccessException ex, HttpServletRequest req) {
+        log.error("Database error", ex);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "database_error",
                 "Error al acceder a la base de datos", req, null);
     }
@@ -150,6 +164,8 @@ public class GlobalExceptionHandler {
     /** 500 - Error genérico */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGeneric(Exception ex, HttpServletRequest req) {
+        log.error("Unhandled exception", ex);
+
         Throwable c = ex;
         while (c != null && c.getCause() != c) {
             if (c instanceof HttpStatusCodeException h)
@@ -164,6 +180,7 @@ public class GlobalExceptionHandler {
             }
             c = c.getCause();
         }
+
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "internal_error",
                 "Ha ocurrido un error interno", req, null);
     }
@@ -172,7 +189,7 @@ public class GlobalExceptionHandler {
     private ResponseEntity<ApiError> build(HttpStatus st, String code, String msg,
                                            HttpServletRequest req, List<ApiError.FieldViolation> v) {
         ApiError body = new ApiError(st.value(), st.getReasonPhrase(), code, msg,
-                req != null ? req.getRequestURI() : null, null, v);
+                req != null ? req.getRequestURI() : "unknown", null, v);
         return ResponseEntity.status(st).body(body);
     }
 
@@ -181,6 +198,7 @@ public class GlobalExceptionHandler {
         HttpStatus s = HttpStatus.resolve(raw) != null ? HttpStatus.valueOf(raw) : HttpStatus.BAD_GATEWAY;
         String code = s.is4xxClientError() ? "client_error" : "upstream_error";
         String msg = s.getReasonPhrase();
+
         if (body != null && !body.isBlank()) {
             try {
                 JsonNode root = new ObjectMapper().readTree(body);
@@ -191,6 +209,7 @@ public class GlobalExceptionHandler {
                 msg = translateMessage(code);
             } catch (Exception ignore) {}
         }
+
         return build(s, code, msg, req, null);
     }
 
@@ -240,11 +259,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(PracticeOperatorException.class)
     public ResponseEntity<String> handlePracticeOperatorException(PracticeOperatorException ex) {
-        // Devuelve SOLO el mensaje como string plano
         return new ResponseEntity<>(ex.getMessage(), ex.getStatus());
     }
 
-    // Maneja otras excepciones que extiendan de PracticeException
     @ExceptionHandler(PracticeException.class)
     public ResponseEntity<String> handlePracticeException(PracticeException ex) {
         return new ResponseEntity<>(ex.getMessage(), ex.getStatus());

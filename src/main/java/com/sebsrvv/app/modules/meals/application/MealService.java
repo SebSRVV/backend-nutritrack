@@ -29,14 +29,12 @@ public class MealService {
         this.mealRepository = mealRepository;
     }
 
-    // Crear un nuevo meal
+    //  Crear un nuevo meal
     public MealResponse createMeal(MealRequest request) {
-        // Validaciones básicas
         if (request.getCalories() == null || request.getCalories() <= 0) {
             throw new InvalidMealDataException("Las calorías deben ser un número positivo.");
         }
 
-        // Verificar si ya existe un meal con el mismo nombre y fecha para el usuario
         List<Meal> existing = mealRepository.findByUserIdAndLoggedAt(request.getUserId(), request.getLoggedAt());
         if (existing.stream().anyMatch(m -> m.getName().equalsIgnoreCase(request.getName()))) {
             throw new MealAlreadyExistsException("El meal ya existe para esta fecha y usuario.");
@@ -50,22 +48,20 @@ public class MealService {
         meal.setNote(request.getNote());
         meal.setLoggedAt(request.getLoggedAt());
 
-        // Buscar categoría si se envía un ID
         if (request.getCategoryId() != null) {
-            MealCategory category;
             try {
-                category = entityManager.getReference(MealCategory.class, request.getCategoryId());
+                MealCategory category = entityManager.getReference(MealCategory.class, request.getCategoryId());
+                meal.setCategory(category);
             } catch (Exception e) {
                 throw new CategoryNotFoundException("Categoría no encontrada con ID: " + request.getCategoryId());
             }
-            meal.setCategory(category);
         }
 
         Meal saved = mealRepository.save(meal);
         return toResponse(saved);
     }
 
-    // Obtener meals de un usuario por fecha
+    //  Obtener meals de un usuario por fecha
     public List<MealResponse> getMealsByDate(UUID userId, LocalDate date) {
         List<Meal> meals = mealRepository.findByUserIdAndLoggedAt(userId, date);
         if (meals.isEmpty()) {
@@ -74,7 +70,7 @@ public class MealService {
         return meals.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
-    // Obtener meals en un rango de fechas
+    //  Obtener meals en un rango de fechas
     public List<MealResponse> getMealsBetweenDates(UUID userId, LocalDate from, LocalDate to) {
         List<Meal> meals = mealRepository.findMealsBetweenDates(userId, from, to);
         if (meals.isEmpty()) {
@@ -83,7 +79,7 @@ public class MealService {
         return meals.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
-    // Actualizar meal existente
+    //  Actualizar meal existente
     public MealResponse updateMeal(UUID mealId, MealRequest request) {
         Meal existing = mealRepository.findById(mealId)
                 .orElseThrow(() -> new MealNotFoundException("Meal no encontrado con ID: " + mealId));
@@ -98,15 +94,13 @@ public class MealService {
         if (request.getNote() != null) existing.setNote(request.getNote());
         if (request.getLoggedAt() != null) existing.setLoggedAt(request.getLoggedAt());
 
-        // Actualizar categoría si se envía un nuevo ID
         if (request.getCategoryId() != null) {
-            MealCategory category;
             try {
-                category = entityManager.getReference(MealCategory.class, request.getCategoryId());
+                MealCategory category = entityManager.getReference(MealCategory.class, request.getCategoryId());
+                existing.setCategory(category);
             } catch (Exception e) {
                 throw new CategoryNotFoundException("Categoría no encontrada con ID: " + request.getCategoryId());
             }
-            existing.setCategory(category);
         }
 
         Meal updated = mealRepository.save(existing);
@@ -120,7 +114,7 @@ public class MealService {
         mealRepository.delete(meal);
     }
 
-    // Conversión manual a DTO
+    //  Conversión manual a DTO
     private MealResponse toResponse(Meal meal) {
         MealResponse response = new MealResponse();
         response.setId(meal.getId());
