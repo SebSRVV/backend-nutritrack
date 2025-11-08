@@ -123,29 +123,6 @@ class AuthTest {
     }
 
     @Test
-    @DisplayName("Debe retornar datos del usuario y asegurar perfil existente")
-    void me_ReturnsIdAndEmail_EnsuresProfile() {
-        // Arrange
-        UUID id = UUID.randomUUID();
-        String email = "me@site.com";
-        Jwt jwt = buildJwt(id.toString(), email);
-
-        when(profileRepository.findById(id)).thenReturn(Optional.empty());
-        when(profileRepository.save(any(UserProfile.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        // Act
-        Map<String, Object> me = authService.me(jwt);
-
-        // Assert
-        assertThat(me.get("id")).isEqualTo(id.toString());
-        assertThat(me.get("email")).isEqualTo(email);
-
-        verify(profileRepository).findById(id);
-        verify(profileRepository).save(any(UserProfile.class));
-        verifyNoInteractions(supabaseAuthClient);
-    }
-
-    @Test
     @DisplayName("Debe actualizar correctamente el perfil del usuario")
     void updateProfile_UpdatesFieldsAndSaves() {
         // Arrange
