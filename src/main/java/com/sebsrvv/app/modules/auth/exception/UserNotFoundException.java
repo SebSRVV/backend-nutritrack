@@ -1,9 +1,21 @@
 package com.sebsrvv.app.modules.auth.exception;
 
-import org.springframework.http.HttpStatus;
+public class UserNotFoundException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
 
-public class UserNotFoundException extends AuthException {
     public UserNotFoundException() {
-        super(HttpStatus.NOT_FOUND, "user_not_found", "No se encontro ningun usuario con las credenciales proporcionadas");
+        super("Usuario no encontrado");
+    }
+
+    public UserNotFoundException(String message) {
+        super(message);
+    }
+
+    public UserNotFoundException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public UserNotFoundException(Throwable cause) {
+        super(cause);
     }
 }
