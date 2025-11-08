@@ -1,152 +1,67 @@
 package com.sebsrvv.app.modules.auth.web;
 
-import com.sebsrvv.app.modules.auth.application.AuthService;
+import com.sebsrvv.app.modules.auth.AuthService;
 import com.sebsrvv.app.modules.auth.web.dto.*;
-import jakarta.validation.Valid;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
+import com.sebsrvv.app.modules.auth.exception.DeleteAccountException;
+import com.sebsrvv.app.modules.auth.exception.DeleteAccountResponse;
 
-import java.net.URI;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final AuthService authService;
-    public AuthController(AuthService authService) { this.authService = authService; }
+    private final AuthService service;
 
-    /* ---------------------------------------------------------
-     * REGISTER
-     * --------------------------------------------------------- */
+    public AuthController(AuthService service) {
+        this.service = service;
+    }
+
     @PostMapping("/register")
-    public Mono<ResponseEntity<RegisterResponse>> register(@Valid @RequestBody RegisterRequest r) {
-        var payload = Map.<String,Object>of(
-                "username",   r.username(),
-                "email",      r.email(),
-                "password",   r.password(),
-                "dob",        r.dob().toString(),              // LocalDate -> "YYYY-MM-DD"
-                "sex",        r.sex().name().toLowerCase(),    // enum -> "male"/"female"
-                "height_cm",  r.height_cm(),
-                "weight_kg",  r.weight_kg()
-        );
-
-        return authService.register(payload)
-                .map(body -> {
-                    String id = String.valueOf(body.get("id"));
-                    RegisterResponse resp = new RegisterResponse(id, r.email(), r.username());
-                    return ResponseEntity
-                            .created(URI.create("/api/users/" + id))  // 201 Created
-                            .body(resp);
-                });
+    public TokenResponse register(@RequestBody RegisterRequest r) {
+        return service.register(r);
     }
 
-    /* ---------------------------------------------------------
-     * LOGIN
-     * --------------------------------------------------------- */
     @PostMapping("/login")
-    public Mono<ResponseEntity<LoginResponse>> login(@Valid @RequestBody LoginRequest r) {
-        return authService.login(r.email(), r.password())
-                .map(tokens -> {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> userMap = (Map<String, Object>) tokens.getOrDefault("user", null);
-                    LoginResponse resp = new LoginResponse(
-                            String.valueOf(tokens.get("access_token")),
-                            String.valueOf(tokens.get("refresh_token")),
-                            String.valueOf(tokens.getOrDefault("token_type", "bearer")),
-                            (Integer) tokens.getOrDefault("expires_in", null),
-                            userMap
-                    );
-                    return ResponseEntity.ok(resp);
-                });
+    public TokenResponse login(@RequestBody LoginRequest r) {
+        return service.login(r);
     }
 
-    /* ---------------------------------------------------------
-     * REFRESH
-     * --------------------------------------------------------- */
-    @PostMapping("/refresh")
-    public Mono<ResponseEntity<RefreshResponse>> refresh(@Valid @RequestBody RefreshRequest r) {
-        return authService.refresh(r.refreshToken())
-                .map(tokens -> {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> userMap = (Map<String, Object>) tokens.getOrDefault("user", null);
-                    return ResponseEntity.ok(
-                            new RefreshResponse(
-                                    String.valueOf(tokens.get("access_token")),
-                                    String.valueOf(tokens.get("refresh_token")),
-                                    String.valueOf(tokens.getOrDefault("token_type", "bearer")),
-                                    (Integer) tokens.getOrDefault("expires_in", null),
-                                    userMap
-                            )
-                    );
-                });
-    }
-
-    /* ---------------------------------------------------------
-     * ME
-     * --------------------------------------------------------- */
     @GetMapping("/me")
-    public Mono<ResponseEntity<MeResponse>> me(@RequestHeader(name = "Authorization", required = false) String authHeader) {
-        if (authHeader == null || authHeader.isBlank()) {
-            return Mono.just(ResponseEntity.status(401).<MeResponse>build());
-        }
-
-        String token = authHeader.replaceFirst("(?i)^Bearer\\s+", "").trim();
-        if (token.isBlank()) {
-            return Mono.just(ResponseEntity.status(401).<MeResponse>build());
-        }
-
-        return authService.getUser(token)
-                .map(user -> {
-                    String id    = String.valueOf(user.get("id"));
-                    String email = String.valueOf(user.get("email"));
-                    String role  = String.valueOf(user.getOrDefault("role", "authenticated"));
-                    @SuppressWarnings("unchecked")
-                    Map<String,Object> appMeta = (Map<String, Object>) user.getOrDefault("app_metadata", Map.of());
-                    @SuppressWarnings("unchecked")
-                    Map<String,Object> userMeta = (Map<String, Object>) user.getOrDefault("user_metadata", Map.of());
-                    String createdAt = String.valueOf(user.getOrDefault("created_at", null));
-                    String updatedAt = String.valueOf(user.getOrDefault("updated_at", null));
-
-                    MeResponse resp = new MeResponse(id, email, role, appMeta, userMeta, createdAt, updatedAt);
-                    return ResponseEntity.ok(resp);
-                })
-                .onErrorResume(ex -> Mono.just(ResponseEntity.status(401).<MeResponse>build()));
+    public Map<String, Object> me(@AuthenticationPrincipal Jwt jwt) {
+        return service.me(jwt);
     }
 
-    /* ---------------------------------------------------------
-     * DELETE (self-service) con confirmación
-     * --------------------------------------------------------- */
+
+    @PatchMapping("/profile")
+    public UpdateProfileResponse update(@AuthenticationPrincipal Jwt jwt,
+                                        @RequestBody UpdateProfileRequest r) {
+        return service.updateProfile(jwt, r);
+    }
+
+    @DeleteMapping("/me")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@AuthenticationPrincipal Jwt jwt) {
+        service.deleteAccount(jwt);
+    }
+
+    @PostMapping("/refresh")
+    public TokenResponse refresh(@RequestBody RefreshRequest r) {
+        return service.refresh(r.refresh_token());
+    }
+
     @DeleteMapping("/delete")
-    public Mono<ResponseEntity<DeleteResponse>> deleteSelf(
-            @RequestHeader(name = "Authorization", required = false) String authHeader,
-            @Valid @RequestBody DeleteRequest body
-    ) {
-        // 0) Confirmación del usuario: debe escribir exactamente "eliminar"
-        if (body == null || body.confirmation() == null
-                || !body.confirmation().trim().equalsIgnoreCase("eliminar")) {
-            return Mono.just(ResponseEntity.badRequest()
-                    .body(new DeleteResponse("rejected", "Debes escribir 'eliminar' para confirmar.")));
+    public DeleteAccountResponse delete(@AuthenticationPrincipal Jwt jwt,
+                                        @RequestBody DeleteAccountRequest r) {
+        if (!r.confirm()) {
+            throw new DeleteAccountException("Debe confirmar la eliminación de la cuenta antes de continuar.");
         }
 
-        // 1) Autorización
-        if (authHeader == null || authHeader.isBlank()) {
-            return Mono.just(ResponseEntity.status(401).<DeleteResponse>build());
-        }
-
-        String token = authHeader.replaceFirst("(?i)^Bearer\\s+", "").trim();
-        if (token.isBlank()) {
-            return Mono.just(ResponseEntity.status(401).<DeleteResponse>build());
-        }
-
-        // 2) Eliminar cuenta (admin via AuthService)
-        return authService.deleteAccount(token)
-                .then(Mono.just(ResponseEntity.ok(new DeleteResponse("deleted", "Tu cuenta ha sido eliminada."))))
-                .onErrorResume(ex -> {
-                    // Si quieres idempotencia ante 404 del IdP, puedes devolver "deleted" igualmente.
-                    return Mono.just(ResponseEntity.status(403)
-                            .body(new DeleteResponse("forbidden", "No fue posible eliminar la cuenta.")));
-                });
+        service.deleteAccount(jwt);
+        return new DeleteAccountResponse("Tu cuenta ha sido eliminada correctamente.");
     }
 }

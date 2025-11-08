@@ -2,11 +2,12 @@ package com.sebsrvv.app.modules.auth.web.dto;
 
 public record UpdateProfileResponse(
         String id,
+        String username,
         String sex,
-        Integer height_cm,
-        Integer weight_kg,
+        Short height_cm,
+        java.math.BigDecimal weight_kg,
         String activity_level,
         String diet_type,
-        Double bmi,
+        java.math.BigDecimal bmi,
         String updated_at
 ) {}
