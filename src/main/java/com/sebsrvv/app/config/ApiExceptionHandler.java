@@ -4,6 +4,8 @@ package com.sebsrvv.app.config;
 import com.sebsrvv.app.modules.auth.exception.EmailAlreadyExistsException;
 import com.sebsrvv.app.modules.auth.exception.InvalidEmailException;
 import com.sebsrvv.app.modules.auth.exception.InvalidPasswordException;
+import com.sebsrvv.app.modules.practice.exception.PracticeException;
+import com.sebsrvv.app.modules.practice.exception.PracticeOperatorException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +21,19 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+
+    @ExceptionHandler(PracticeOperatorException.class)
+    public ResponseEntity<String> handlePracticeOperatorException(PracticeOperatorException ex) {
+        // Devuelve SOLO el mensaje como string plano
+        return new ResponseEntity<>(ex.getMessage(), ex.getStatus());
+    }
+
+    // Maneja otras excepciones que extiendan de PracticeException
+    @ExceptionHandler(PracticeException.class)
+    public ResponseEntity<String> handlePracticeException(PracticeException ex) {
+        return new ResponseEntity<>(ex.getMessage(), ex.getStatus());
+    }
 
     /* ----------- Validación DTOs ----------- */
     @ExceptionHandler(MethodArgumentNotValidException.class)
