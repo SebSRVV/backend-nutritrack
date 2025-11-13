@@ -1,39 +1,35 @@
 package com.sebsrvv.app.modules.meals.web;
 
 import com.sebsrvv.app.modules.meals.domain.Meal;
-import com.sebsrvv.app.modules.meals.domain.MealCategory;
 import com.sebsrvv.app.modules.meals.web.dto.MealRequest;
 import com.sebsrvv.app.modules.meals.web.dto.MealResponse;
+import org.springframework.stereotype.Component;
 
+@Component
 public class MealMapper {
 
-    public static Meal toEntity(MealRequest request, MealCategory category) {
+    public Meal toEntity(MealRequest request) {
         Meal meal = new Meal();
-        meal.setUserId(request.getUserId());
-        meal.setName(request.getName());
         meal.setMealType(request.getMealType());
+        meal.setDescription(request.getDescription());
         meal.setCalories(request.getCalories());
-        meal.setNote(request.getNote());
+        meal.setProtein_g(request.getProtein_g());
+        meal.setCarbs_g(request.getCarbs_g());
+        meal.setFat_g(request.getFat_g());
         meal.setLoggedAt(request.getLoggedAt());
-        meal.setCategory(category);
         return meal;
     }
 
-    public static MealResponse toResponse(Meal meal) {
+    public MealResponse toResponse(Meal meal) {
         MealResponse response = new MealResponse();
         response.setId(meal.getId());
-        response.setUserId(meal.getUserId());
-        response.setName(meal.getName());
         response.setMealType(meal.getMealType());
+        response.setDescription(meal.getDescription());
         response.setCalories(meal.getCalories());
-        response.setNote(meal.getNote());
+        response.setProtein_g(meal.getProtein_g());
+        response.setCarbs_g(meal.getCarbs_g());
+        response.setFat_g(meal.getFat_g());
         response.setLoggedAt(meal.getLoggedAt());
-
-        if (meal.getCategory() != null) {
-            response.setCategoryId(meal.getCategory().getId());
-            response.setCategoryName(meal.getCategory().getName());
-        }
-
         return response;
     }
 }

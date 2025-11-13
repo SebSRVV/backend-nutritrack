@@ -1,8 +1,9 @@
 package com.sebsrvv.app.modules.meals.domain;
 
+import com.sebsrvv.app.modules.meals.domain.MealType;
 import jakarta.persistence.*;
 import lombok.Data;
-import java.time.LocalDate;
+import java.time.Instant;
 import java.util.UUID;
 
 @Data
@@ -17,24 +18,30 @@ public class Meal {
     @Column(nullable = false)
     private UUID userId;
 
-    @Column(nullable = false)
-    private String name;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private MealType mealType;
 
     @Column(nullable = false)
-    private Double calories;
-
-    @Column
-    private String note;
+    private String description;
 
     @Column(nullable = false)
-    private LocalDate loggedAt;
+    private Double calories;
 
+    @Column(nullable = false)
+    private Double protein_g;
+
+    @Column(nullable = false)
+    private Double carbs_g;
+
+    @Column(nullable = false)
+    private Double fat_g;
+
+    @Column(nullable = false)
+    private Instant loggedAt;
+
+    // 🔹 Relación con MealCategory
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private MealCategory category;
 }
-
