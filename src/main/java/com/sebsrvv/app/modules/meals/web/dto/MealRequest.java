@@ -1,3 +1,4 @@
+// src/main/java/com/sebsrvv/app/modules/meals/web/dto/MealRequest.java
 package com.sebsrvv.app.modules.meals.web.dto;
 
 import com.sebsrvv.app.modules.meals.domain.MealType;
