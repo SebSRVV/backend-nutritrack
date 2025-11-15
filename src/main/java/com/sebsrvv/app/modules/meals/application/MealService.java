@@ -1,7 +1,6 @@
-// src/main/java/com/sebsrvv/app/modules/meals/application/MealService.java
 package com.sebsrvv.app.modules.meals.application;
 
-import com.sebsrvv.app.modules.meals.domain.Meal;
+import com.sebsrvv.app.modules.meals.domain.MealLog;
 import com.sebsrvv.app.modules.meals.domain.MealRepository;
 import com.sebsrvv.app.modules.meals.exception.MealNotFoundException;
 import com.sebsrvv.app.modules.meals.exception.UnauthorizedMealAccessException;
@@ -12,13 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * Servicio de dominio para meals.
- * Observe que TODAS las operaciones que dependen del usuario reciben userId (extraído en Controller).
- */
 @Service
 @Transactional
 public class MealService {
@@ -31,52 +25,58 @@ public class MealService {
         this.mealMapper = mealMapper;
     }
 
-    // Crear meal (asociada a userId)
-    public MealResponse createMeal(UUID userId, MealRequest request) {
-        Meal meal = mealMapper.toEntity(userId, request);
-        Meal saved = mealRepository.save(meal);
+    // Crear meal
+    public MealResponse createMeal(Long userId, MealRequest request) {
+        MealLog meal = mealMapper.toEntity(userId, request);
+        MealLog saved = mealRepository.save(meal);
         return mealMapper.toResponse(saved);
     }
 
-    // Listar meals del usuario
+    // Listar todas las meals de un usuario
     @Transactional(readOnly = true)
-    public List<MealResponse> getAllMeals(UUID userId) {
+    public List<MealResponse> getAllMeals(Long userId) {
         return mealRepository.findByUserId(userId)
                 .stream()
                 .map(mealMapper::toResponse)
                 .collect(Collectors.toList());
     }
 
-    // Obtener meal específico (validando ownership)
+    // Obtener una meal específica
     @Transactional(readOnly = true)
-    public MealResponse getMeal(UUID mealId, UUID userId) {
-        Meal meal = mealRepository.findById(mealId)
+    public MealResponse getMeal(Long mealId, Long userId) {
+        MealLog meal = mealRepository.findById(mealId)
                 .orElseThrow(() -> new MealNotFoundException("Meal no encontrado con ID: " + mealId));
+
         if (!meal.getUserId().equals(userId)) {
             throw new UnauthorizedMealAccessException("No tienes permiso para ver este meal.");
         }
+
         return mealMapper.toResponse(meal);
     }
 
-    // Actualizar meal (valida ownership)
-    public MealResponse updateMeal(UUID mealId, UUID userId, MealRequest request) {
-        Meal meal = mealRepository.findById(mealId)
+    // Actualizar meal
+    public MealResponse updateMeal(Long mealId, Long userId, MealRequest request) {
+        MealLog meal = mealRepository.findById(mealId)
                 .orElseThrow(() -> new MealNotFoundException("Meal no encontrado con ID: " + mealId));
+
         if (!meal.getUserId().equals(userId)) {
             throw new UnauthorizedMealAccessException("No tienes permiso para actualizar este meal.");
         }
+
         mealMapper.updateEntityFromRequest(meal, request);
-        Meal updated = mealRepository.save(meal);
+        MealLog updated = mealRepository.save(meal);
         return mealMapper.toResponse(updated);
     }
 
-    // Eliminar meal (valida ownership)
-    public void deleteMeal(UUID mealId, UUID userId) {
-        Meal meal = mealRepository.findById(mealId)
+    // Eliminar meal
+    public void deleteMeal(Long mealId, Long userId) {
+        MealLog meal = mealRepository.findById(mealId)
                 .orElseThrow(() -> new MealNotFoundException("Meal no encontrado con ID: " + mealId));
+
         if (!meal.getUserId().equals(userId)) {
             throw new UnauthorizedMealAccessException("No tienes permiso para eliminar este meal.");
         }
+
         mealRepository.delete(meal);
     }
 }

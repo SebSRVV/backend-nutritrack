@@ -2,23 +2,19 @@ package com.sebsrvv.app.modules.meals.domain;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import java.util.UUID;
 
-/**
- * Categoría general de los alimentos (por ejemplo, “Proteínas”, “Carbohidratos”).
- */
+@Data
 @Entity
 @Table(name = "food_categories")
-@Data
 public class FoodCategory {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(nullable = false, unique = true)
-    private String name; // Nombre de la categoría (ejemplo: "Proteínas")
+    private String name;
 
     @Column
-    private String description; // Descripción opcional
+    private String description;
 }

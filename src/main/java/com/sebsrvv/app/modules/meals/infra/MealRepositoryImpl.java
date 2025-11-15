@@ -1,7 +1,6 @@
 package com.sebsrvv.app.modules.meals.infra;
 
-import com.sebsrvv.app.modules.meals.domain.Meal;
-import com.sebsrvv.app.modules.meals.domain.MealRepository;
+import com.sebsrvv.app.modules.meals.domain.MealLog;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
@@ -16,9 +15,9 @@ public class MealRepositoryImpl {
     @PersistenceContext
     private EntityManager entityManager;
 
-    public List<Meal> findMealsBetweenDates(UUID userId, LocalDate from, LocalDate to) {
+    public List<MealLog> findMealsBetweenDates(UUID userId, LocalDate from, LocalDate to) {
         return entityManager.createQuery(
-                        "SELECT m FROM Meal m WHERE m.userId = :userId AND m.loggedAt BETWEEN :from AND :to", Meal.class)
+                        "SELECT m FROM MealLog m WHERE m.userId = :userId AND m.loggedAt BETWEEN :from AND :to", MealLog.class)
                 .setParameter("userId", userId)
                 .setParameter("from", from)
                 .setParameter("to", to)
