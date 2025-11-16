@@ -1,33 +1,54 @@
 package com.sebsrvv.app.modules.meals.web.dto;
 
 import com.sebsrvv.app.modules.meals.domain.MealType;
-import jakarta.validation.constraints.*;
-import lombok.Data;
-
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
+import java.util.List;
 
-@Data
 public class MealRequest {
 
-    @NotNull(message = "El tipo de comida es obligatorio.")
     private MealType mealType;
 
-    @NotBlank(message = "La descripción es obligatoria.")
+    @NotBlank(message = "description no puede estar vacío")
     private String description;
 
-    @NotNull(message = "Las calorías son obligatorias.")
-    @Positive(message = "Las calorías deben ser un número positivo.")
+    @Min(value = 0, message = "calories debe ser >= 0")
     private Double calories;
 
-    @PositiveOrZero
-    private Double protein_g = 0.0;
+    private Double protein_g;
+    private Double carbs_g;
+    private Double fat_g;
 
-    @PositiveOrZero
-    private Double carbs_g = 0.0;
+    /**
+     * Fecha opcional (cliente puede enviar loggedAt); si null se usará Instant.now()
+     */
+    private LocalDate loggedAt;
 
-    @PositiveOrZero
-    private Double fat_g = 0.0;
+    private List<String> mealItems;
 
-    @NotNull(message = "La fecha del registro es obligatoria.")
-    private LocalDate loggedAt; // la API usa LocalDate, mapper convierte a Instant
+    // getters / setters
+    public MealType getMealType() { return mealType; }
+    public void setMealType(MealType mealType) { this.mealType = mealType; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+
+    public Double getCalories() { return calories; }
+    public void setCalories(Double calories) { this.calories = calories; }
+
+    public Double getProtein_g() { return protein_g; }
+    public void setProtein_g(Double protein_g) { this.protein_g = protein_g; }
+
+    public Double getCarbs_g() { return carbs_g; }
+    public void setCarbs_g(Double carbs_g) { this.carbs_g = carbs_g; }
+
+    public Double getFat_g() { return fat_g; }
+    public void setFat_g(Double fat_g) { this.fat_g = fat_g; }
+
+    public LocalDate getLoggedAt() { return loggedAt; }
+    public void setLoggedAt(LocalDate loggedAt) { this.loggedAt = loggedAt; }
+
+    public List<String> getMealItems() { return mealItems; }
+    public void setMealItems(List<String> mealItems) { this.mealItems = mealItems; }
 }

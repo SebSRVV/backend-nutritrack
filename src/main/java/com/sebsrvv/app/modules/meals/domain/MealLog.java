@@ -1,17 +1,10 @@
 package com.sebsrvv.app.modules.meals.domain;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-@Getter
-@Setter
-@NoArgsConstructor
 @Entity
 @Table(name = "meal_logs")
 public class MealLog {
@@ -20,51 +13,58 @@ public class MealLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id", nullable = false, length = 100)
-    private String userId;
+    @Column(nullable = false)
+    private String userId; // guardamos el subject del JWT como String
 
-    @Column(nullable = false, length = 1000)
+    @Column(name = "meal_type")
+    private String mealType; // almacenamos como string (ej: "BREAKFAST")
+
+    @Column(columnDefinition = "text")
     private String description;
 
-    @Column(nullable = false)
     private Double calories;
-
-    @Column(nullable = false)
-    private Double protein_g = 0.0;
-
-    @Column(nullable = false)
-    private Double carbs_g = 0.0;
-
-    @Column(nullable = false)
-    private Double fat_g = 0.0;
-
-    // STRING en DB → QUITAMOS @Data para evitar setters automáticos erróneos
-    @Column(name = "meal_type", nullable = false, length = 50)
-    private String mealType;
+    private Double protein_g;
+    private Double carbs_g;
+    private Double fat_g;
 
     @Column(name = "logged_at", nullable = false)
     private Instant loggedAt;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt = Instant.now();
-
     @ElementCollection
-    @CollectionTable(name = "meal_items", joinColumns = @JoinColumn(name = "meal_log_id"))
+    @CollectionTable(name = "meal_log_items", joinColumns = @JoinColumn(name = "meal_log_id"))
     @Column(name = "item")
     private List<String> mealItems = new ArrayList<>();
 
-    // Setter correcto para ENUM → String lowercase
-    public void setMealType(MealType type) {
-        this.mealType = (type == null) ? null : type.name().toLowerCase();
-    }
+    // --- Getters / Setters ---
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    // Getter correcto ENUM
-    public MealType getMealTypeEnum() {
-        return (mealType == null) ? null : MealType.valueOf(mealType.toUpperCase());
-    }
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
 
-    // Setter correcto para Instant
-    public void setLoggedAt(Instant instant) {
-        this.loggedAt = instant;
+    public String getMealType() { return mealType; }
+    public void setMealType(String mealType) { this.mealType = mealType; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+
+    public Double getCalories() { return calories; }
+    public void setCalories(Double calories) { this.calories = calories; }
+
+    public Double getProtein_g() { return protein_g; }
+    public void setProtein_g(Double protein_g) { this.protein_g = protein_g; }
+
+    public Double getCarbs_g() { return carbs_g; }
+    public void setCarbs_g(Double carbs_g) { this.carbs_g = carbs_g; }
+
+    public Double getFat_g() { return fat_g; }
+    public void setFat_g(Double fat_g) { this.fat_g = fat_g; }
+
+    public Instant getLoggedAt() { return loggedAt; }
+    public void setLoggedAt(Instant loggedAt) { this.loggedAt = loggedAt; }
+
+    public List<String> getMealItems() { return mealItems; }
+    public void setMealItems(List<String> mealItems) {
+        this.mealItems = mealItems == null ? new ArrayList<>() : mealItems;
     }
 }
