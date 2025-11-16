@@ -4,7 +4,7 @@ import com.sebsrvv.app.modules.meals.domain.MealType;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
-import java.time.Instant;
+import java.time.LocalDate;
 
 @Data
 public class MealRequest {
@@ -19,15 +19,15 @@ public class MealRequest {
     @Positive(message = "Las calorías deben ser un número positivo.")
     private Double calories;
 
-    @PositiveOrZero(message = "La cantidad de proteína no puede ser negativa.")
+    @PositiveOrZero
     private Double protein_g = 0.0;
 
-    @PositiveOrZero(message = "La cantidad de carbohidratos no puede ser negativa.")
+    @PositiveOrZero
     private Double carbs_g = 0.0;
 
-    @PositiveOrZero(message = "La cantidad de grasa no puede ser negativa.")
+    @PositiveOrZero
     private Double fat_g = 0.0;
 
     @NotNull(message = "La fecha del registro es obligatoria.")
-    private Instant loggedAt;
+    private LocalDate loggedAt; // la API usa LocalDate, mapper convierte a Instant
 }

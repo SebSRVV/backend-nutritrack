@@ -9,7 +9,7 @@ import java.util.List;
 @Repository
 public interface MealRepository extends JpaRepository<MealLog, Long> {
 
-    // userId is String (UUID)
+    // Usadas por tu servicio; las dejo tal cual
     List<MealLog> findByUserId(String userId);
 
     List<MealLog> findByUserIdAndLoggedAtBetweenOrderByLoggedAtAsc(String userId, Instant start, Instant end);

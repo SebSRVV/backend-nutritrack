@@ -1,14 +1,16 @@
 package com.sebsrvv.app.modules.meals.domain;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @Entity
 @Table(name = "meal_logs")
@@ -18,11 +20,10 @@ public class MealLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // userId as String to support UUIDs from Supabase
     @Column(name = "user_id", nullable = false, length = 100)
     private String userId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 1000)
     private String description;
 
     @Column(nullable = false)
@@ -37,9 +38,9 @@ public class MealLog {
     @Column(nullable = false)
     private Double fat_g = 0.0;
 
-    @Enumerated(EnumType.ORDINAL)
-    @Column(name = "meal_type", nullable = false)
-    private MealType mealType;
+    // STRING en DB → QUITAMOS @Data para evitar setters automáticos erróneos
+    @Column(name = "meal_type", nullable = false, length = 50)
+    private String mealType;
 
     @Column(name = "logged_at", nullable = false)
     private Instant loggedAt;
@@ -51,4 +52,19 @@ public class MealLog {
     @CollectionTable(name = "meal_items", joinColumns = @JoinColumn(name = "meal_log_id"))
     @Column(name = "item")
     private List<String> mealItems = new ArrayList<>();
+
+    // Setter correcto para ENUM → String lowercase
+    public void setMealType(MealType type) {
+        this.mealType = (type == null) ? null : type.name().toLowerCase();
+    }
+
+    // Getter correcto ENUM
+    public MealType getMealTypeEnum() {
+        return (mealType == null) ? null : MealType.valueOf(mealType.toUpperCase());
+    }
+
+    // Setter correcto para Instant
+    public void setLoggedAt(Instant instant) {
+        this.loggedAt = instant;
+    }
 }
