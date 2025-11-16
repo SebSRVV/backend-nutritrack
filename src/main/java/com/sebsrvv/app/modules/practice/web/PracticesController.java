@@ -1,17 +1,19 @@
 package com.sebsrvv.app.modules.practice.web;
 
-
+import com.sebsrvv.app.modules.auth.domain.ProfileRepository;
 import com.sebsrvv.app.modules.practice.application.PracticesEntriesService;
 import com.sebsrvv.app.modules.practice.application.PracticesService;
 import com.sebsrvv.app.modules.practice.application.PracticesWeekStatsService;
-import com.sebsrvv.app.modules.practice.exception.PracticeException;
+import com.sebsrvv.app.modules.practice.domain.Practices;
+import com.sebsrvv.app.modules.practice.domain.PracticesRepository;
+import com.sebsrvv.app.modules.practice.exception.NoPracticeException;
+import com.sebsrvv.app.modules.practice.exception.NoUserException;
+import com.sebsrvv.app.modules.practice.exception.SuccessResponse;
 import com.sebsrvv.app.modules.practice.web.dto.*;
-import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.sebsrvv.app.modules.practice.application.PracticesService;
 
 import java.util.UUID;
 
@@ -21,69 +23,131 @@ public class PracticesController {
 
     @Autowired
     private PracticesService practicesService;
-
+    @Autowired
+    private PracticesRepository practicesRepository;
     @Autowired
     private PracticesEntriesService practicesEntriesService;
     @Autowired
     private PracticesWeekStatsService practicesWeekStatsService;
-    //@Mock Inicializar las variables
-    //@Test
-    //@Arrange Inicializacion
-    //@Act Actuar
-    //@Assert output
-
+    @Autowired
+    private ProfileRepository profileRepository;
 
     @PostMapping("/crear/{id}")
-    public ResponseEntity<?> CrearPractica(@RequestBody PracticesDTO Cuerpo, @PathVariable UUID id){
-        practicesService.createPractice(Cuerpo,id);
-        return ResponseEntity.status(HttpStatus.CREATED).body(Cuerpo);
+    public ResponseEntity<SuccessResponse> crearPractica(@RequestBody PracticesDTO cuerpo, @PathVariable UUID id) {
+        if (profileRepository.findById(id).isEmpty()) {
+            throw new NoUserException(id);
+        }
+        practicesService.createPractice(cuerpo, id);
+
+        SuccessResponse response = new SuccessResponse(
+                "PRACTICE_CREATED",
+                "La práctica se creó con éxito"
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/editar/{id}")
-    public ResponseEntity<?> EditarPractica(@RequestBody PracticesDTO Cuerpo, @PathVariable UUID id){
-        return ResponseEntity.ok(practicesService.updatePractice(Cuerpo,id));
+    public ResponseEntity<SuccessResponse> editarPractica(@RequestBody PracticesDTO cuerpo, @PathVariable UUID id) {
+        practicesRepository.findById(id).orElseThrow(() -> new NoPracticeException(id));
+        practicesService.updatePractice(cuerpo, id);
+
+        SuccessResponse response = new SuccessResponse(
+                "PRACTICE_EDITED",
+                "La práctica se editó con éxito"
+        );
+        return ResponseEntity.ok(response);
     }
 
-    //hard o soft
     @DeleteMapping("/eliminar/{metodo}/{id}")
-    public ResponseEntity<?> EliminarPractica(@PathVariable String metodo, @PathVariable UUID id){
-        practicesService.deletePractice(metodo,id);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<SuccessResponse> eliminarPractica(@PathVariable String metodo, @PathVariable UUID id) {
+        practicesRepository.findById(id).orElseThrow(() -> new NoPracticeException(id));
+        practicesService.deletePractice(metodo, id);
+
+        SuccessResponse response;
+        if ("soft".equals(metodo)) {
+            response = new SuccessResponse(
+                    "PRACTICE_DISABLED",
+                    "La práctica se desactivó con éxito"
+            );
+        } else {
+            response = new SuccessResponse(
+                    "PRACTICE_DELETED",
+                    "La práctica se eliminó con éxito"
+            );
+        }
+        return ResponseEntity.ok(response);
     }
 
-    @PostMapping("crearentrada/{practiceId}/{userId}")
-    public ResponseEntity<?> CrearEntrada(@RequestBody PracticesEntriesDTO Cuerpo, @PathVariable UUID practiceId, @PathVariable UUID userId){
-        practicesEntriesService.create(Cuerpo,practiceId,userId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(Cuerpo);
+    @PostMapping("/crearentrada/{practiceId}")
+    public ResponseEntity<SuccessResponse> crearEntrada(@RequestBody PracticesEntriesDTO cuerpo, @PathVariable UUID practiceId) {
+        Practices evaluar = practicesRepository.findById(practiceId)
+                .orElseThrow(() -> new NoPracticeException(practiceId));
+
+        if (profileRepository.findById(evaluar.getUserId()).isEmpty()) {
+            throw new NoUserException(evaluar.getUserId());
+        }
+
+        practicesEntriesService.create(cuerpo, practiceId);
+
+        SuccessResponse response = new SuccessResponse(
+                "ENTRY_CREATED",
+                "La entrada se creó con éxito"
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/editarentrada/{id}")
-    public ResponseEntity<?> EditarEntrada(@RequestBody PracticesEntriesDTO Cuerpo, @PathVariable UUID id){
-        //practicesEntriesService.update(Cuerpo,id);
-        return ResponseEntity.ok(practicesEntriesService.update(Cuerpo,id));
+    public ResponseEntity<SuccessResponse> editarEntrada(@RequestBody PracticesEntriesDTO cuerpo, @PathVariable UUID id) {
+        practicesEntriesService.update(cuerpo, id);
+
+        SuccessResponse response = new SuccessResponse(
+                "ENTRY_EDITED",
+                "La entrada se editó con éxito"
+        );
+        return ResponseEntity.ok(response);
     }
 
-    @DeleteMapping("borrarentrada/{id}")
-    public ResponseEntity<?> EliminarEntrada(@PathVariable UUID id){
+    @DeleteMapping("/borrarentrada/{id}")
+    public ResponseEntity<SuccessResponse> eliminarEntrada(@PathVariable UUID id) {
         practicesEntriesService.delete(id);
-        return ResponseEntity.ok().build();
+
+        SuccessResponse response = new SuccessResponse(
+                "ENTRY_DELETED",
+                "La entrada se eliminó con éxito"
+        );
+        return ResponseEntity.ok(response);
     }
 
-    @PostMapping("crearweek/{practiceId}/{userId}")
-    public ResponseEntity<?> CrearWeek(@RequestBody PracticesWeekStatsRequest Cuerpo, @PathVariable UUID practiceId, @PathVariable UUID userId){
-        practicesWeekStatsService.create(Cuerpo,practiceId,userId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(Cuerpo);
+    @PostMapping("/crearweek/{practiceId}")
+    public ResponseEntity<SuccessResponse> crearWeek(@RequestBody PracticesWeekStatsRequest cuerpo, @PathVariable UUID practiceId) {
+        practicesWeekStatsService.create(cuerpo, practiceId);
+
+        SuccessResponse response = new SuccessResponse(
+                "WEEK_CREATED",
+                "El stat se creó con éxito"
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PutMapping("editarweek/{id}")
-    public ResponseEntity<?> EditarWeek(@RequestBody PracticesWeekStatsRequest Cuerpo, @PathVariable UUID id){
-        //practicesWeekStatsService.edit(Cuerpo,id);
-        return ResponseEntity.ok(practicesWeekStatsService.edit(Cuerpo,id));
+    @PutMapping("/editarweek/{id}")
+    public ResponseEntity<SuccessResponse> editarWeek(@RequestBody PracticesWeekStatsRequest cuerpo, @PathVariable UUID id) {
+        practicesWeekStatsService.edit(cuerpo, id);
+
+        SuccessResponse response = new SuccessResponse(
+                "WEEK_EDITED",
+                "El stat se editó con éxito"
+        );
+        return ResponseEntity.ok(response);
     }
 
-    @DeleteMapping("borrarweek/{id}")
-    public ResponseEntity<?> EliminarWeek(@PathVariable UUID id){
+    @DeleteMapping("/borrarweek/{id}")
+    public ResponseEntity<SuccessResponse> eliminarWeek(@PathVariable UUID id) {
         practicesWeekStatsService.delete(id);
-        return ResponseEntity.ok().build();
+
+        SuccessResponse response = new SuccessResponse(
+                "WEEK_DELETED",
+                "El stat se eliminó con éxito"
+        );
+        return ResponseEntity.ok(response);
     }
 }

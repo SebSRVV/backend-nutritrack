@@ -11,7 +11,7 @@ import com.sebsrvv.app.modules.practice.web.dto.PracticesEntriesResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.sebsrvv.app.modules.practice.domain.Practices;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Date;
@@ -26,15 +26,16 @@ public class PracticesEntriesService {
     private PracticesRepository practicesRepository;
 
     @Transactional
-    public PracticesEntriesDTO create(PracticesEntriesDTO dto, UUID practiceId, UUID userId) {
+    public PracticesEntriesDTO create(PracticesEntriesDTO dto, UUID practiceId) {
         PracticesEntries entrada = new PracticesEntries();
         if (practicesRepository.findById(practiceId).isPresent()) {
             entrada.setPracticeId(practiceId);
         } else{
             throw new NoPracticeException(practiceId);
         }
+        Practices practice = practicesRepository.findById(practiceId).orElse(null);
 
-        entrada.setUserId(userId);
+        entrada.setUserId(practice.getUserId());
         entrada.setLogDate(LocalDate.now());
         entrada.setValue(dto.getValue());
         entrada.setNote(dto.getNote());

@@ -1,7 +1,6 @@
 package com.sebsrvv.app.modules.practice.application;
 
-import com.sebsrvv.app.modules.practice.domain.PracticesWeekStats;
-import com.sebsrvv.app.modules.practice.domain.PracticesWeekStatsRepository;
+import com.sebsrvv.app.modules.practice.domain.*;
 import com.sebsrvv.app.modules.practice.exception.NoPracticeException;
 import com.sebsrvv.app.modules.practice.web.dto.PracticesWeekStatsRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,12 +15,19 @@ import java.util.UUID;
 public class PracticesWeekStatsService {
     @Autowired
     private PracticesWeekStatsRepository practicesWeekStatsRepository;
-
+    @Autowired
+    private PracticesRepository practicesRepository;
     @Transactional
-    public PracticesWeekStatsResponse  create(PracticesWeekStatsRequest body, UUID practiceId, UUID userId) {
+    public PracticesWeekStatsResponse  create(PracticesWeekStatsRequest body, UUID practiceId) {
         PracticesWeekStats practicesWeekStats = new PracticesWeekStats();
-        practicesWeekStats.setPracticeId(practiceId);
-        practicesWeekStats.setUserId(userId);
+        if (practicesRepository.findById(practiceId).isPresent()) {
+            practicesWeekStats.setPracticeId(practiceId);
+        } else{
+            throw new NoPracticeException(practiceId);
+        }
+        Practices practice = practicesRepository.findById(practiceId).orElse(null);
+
+        practicesWeekStats.setUserId(practice.getUserId());
         practicesWeekStats.setName(body.getName());
         practicesWeekStats.setDaysPerWeek(body.getDaysPerWeek());
         practicesWeekStats.setAchievedDaysLast7(body.getAchievedDaysLast7());
