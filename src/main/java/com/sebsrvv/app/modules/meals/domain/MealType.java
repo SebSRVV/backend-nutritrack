@@ -1,22 +1,22 @@
 package com.sebsrvv.app.modules.meals.domain;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 public enum MealType {
     BREAKFAST,
     LUNCH,
     DINNER,
     SNACK;
 
-    public static MealType from(int value) {
-        switch (value) {
-            case 0: return BREAKFAST;
-            case 1: return LUNCH;
-            case 2: return DINNER;
-            case 3: return SNACK;
-            default: throw new IllegalArgumentException("Tipo de comida inválido: " + value);
-        }
+    @JsonCreator
+    public static MealType fromString(String key) {
+        if (key == null) return null;
+        return MealType.valueOf(key.trim().toUpperCase());
     }
 
-    public int toValue() {
-        return this.ordinal();
+    @JsonValue
+    public String toValue() {
+        return this.name();
     }
 }

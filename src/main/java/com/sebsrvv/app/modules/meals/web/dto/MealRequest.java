@@ -20,13 +20,13 @@ public class MealRequest {
     private Double calories;
 
     @PositiveOrZero(message = "La cantidad de proteína no puede ser negativa.")
-    private Double protein_g;
+    private Double protein_g = 0.0;
 
     @PositiveOrZero(message = "La cantidad de carbohidratos no puede ser negativa.")
-    private Double carbs_g;
+    private Double carbs_g = 0.0;
 
     @PositiveOrZero(message = "La cantidad de grasa no puede ser negativa.")
-    private Double fat_g;
+    private Double fat_g = 0.0;
 
     @NotNull(message = "La fecha del registro es obligatoria.")
     private Instant loggedAt;

@@ -1,20 +1,22 @@
 package com.sebsrvv.app.modules.meals.web.dto;
 
 import com.sebsrvv.app.modules.meals.domain.MealType;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
-import java.util.UUID;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class MealResponse {
-    private UUID id;
-    private String name;
-    private MealType type;
+    private Long id;
+    private MealType mealType;
     private String description;
-    private Instant date;
+    private Double calories;
+    private Double protein_g;
+    private Double carbs_g;
+    private Double fat_g;
+    private Instant loggedAt;
+    private List<String> mealItems;
 }

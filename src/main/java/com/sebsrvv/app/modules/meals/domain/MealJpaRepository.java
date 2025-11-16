@@ -7,9 +7,9 @@ import java.time.Instant;
 import java.util.List;
 
 @Repository
-public interface MealJpaRepository extends JpaRepository<MealLog, Long> { // Long, no UUID
+public interface MealJpaRepository extends JpaRepository<MealLog, Long> {
 
-    List<MealLog> findByUserIdAndLoggedAt(Long userId, Instant loggedAt);
+    List<MealLog> findByUserIdAndLoggedAt(String userId, Instant loggedAt);
 
-    List<MealLog> findByUserIdAndLoggedAtBetweenOrderByLoggedAtAsc(Long userId, Instant from, Instant to);
+    List<MealLog> findByUserIdAndLoggedAtBetweenOrderByLoggedAtAsc(String userId, Instant from, Instant to);
 }

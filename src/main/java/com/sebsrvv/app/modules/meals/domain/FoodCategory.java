@@ -2,8 +2,10 @@ package com.sebsrvv.app.modules.meals.domain;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
 @Entity
 @Table(name = "food_categories")
 public class FoodCategory {

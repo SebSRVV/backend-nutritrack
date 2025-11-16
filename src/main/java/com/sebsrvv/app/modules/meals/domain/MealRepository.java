@@ -7,11 +7,12 @@ import java.time.Instant;
 import java.util.List;
 
 @Repository
-public interface MealRepository extends JpaRepository<MealLog, Long> { // Long, no UUID
+public interface MealRepository extends JpaRepository<MealLog, Long> {
 
-    List<MealLog> findByUserId(Long userId); // Long
+    // userId is String (UUID)
+    List<MealLog> findByUserId(String userId);
 
-    List<MealLog> findByUserIdAndLoggedAtBetweenOrderByLoggedAtAsc(Long userId, Instant start, Instant end);
+    List<MealLog> findByUserIdAndLoggedAtBetweenOrderByLoggedAtAsc(String userId, Instant start, Instant end);
 
-    List<MealLog> findByUserIdAndLoggedAt(Long userId, Instant loggedAt);
+    List<MealLog> findByUserIdAndLoggedAt(String userId, Instant loggedAt);
 }

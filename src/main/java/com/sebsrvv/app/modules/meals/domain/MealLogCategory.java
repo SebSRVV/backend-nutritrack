@@ -2,10 +2,12 @@ package com.sebsrvv.app.modules.meals.domain;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 
 @Data
+@NoArgsConstructor
 @Entity
 @Table(name = "meal_log_categories")
 public class MealLogCategory {
@@ -20,7 +22,7 @@ public class MealLogCategory {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
-    private FoodCategory category; // Cambiado de MealCategory → FoodCategory
+    private FoodCategory category;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
