@@ -1,9 +1,21 @@
 package com.sebsrvv.app.modules.auth.exception;
 
-import org.springframework.http.HttpStatus;
+public class InvalidEmailException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
 
-public class InvalidEmailException extends AuthException {
     public InvalidEmailException() {
-        super(HttpStatus.BAD_REQUEST, "invalid_email", "El formato del correo no es valido");
+        super("El formato del correo electrónico es inválido");
+    }
+
+    public InvalidEmailException(String message) {
+        super(message);
+    }
+
+    public InvalidEmailException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public InvalidEmailException(Throwable cause) {
+        super(cause);
     }
 }

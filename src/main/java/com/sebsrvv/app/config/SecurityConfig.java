@@ -34,6 +34,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login", "/api/auth/refresh").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/metrics").permitAll()
                         .anyRequest().authenticated() // cualquier otra ruta requiere auth
                 )
 

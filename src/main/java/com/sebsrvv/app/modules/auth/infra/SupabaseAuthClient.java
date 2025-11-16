@@ -32,7 +32,6 @@ public class SupabaseAuthClient {
                 .build();
     }
 
-    // signup email/password
     public Map<String, Object> signup(String email, String password, Map<String, Object> userMetadata) {
         Map<String, Object> body = Map.of(
                 "email", email,
@@ -47,7 +46,6 @@ public class SupabaseAuthClient {
                 .body(Map.class);
     }
 
-    // login password grant
     public Map<String, Object> login(String email, String password) {
         Map<String, Object> body = Map.of("email", email, "password", password);
         return http.post()
@@ -58,4 +56,17 @@ public class SupabaseAuthClient {
                 .retrieve()
                 .body(Map.class);
     }
+
+    public Map<String, Object> refresh(String refreshToken) {
+        Map<String, Object> body = Map.of("refresh_token", refreshToken);
+        return http.post()
+                .uri("/auth/v1/token?grant_type=refresh_token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + anonKey)
+                .body(body)
+                .retrieve()
+                .body(Map.class);
+    }
 }
+
+
