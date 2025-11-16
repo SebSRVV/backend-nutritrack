@@ -1,33 +1,31 @@
 package com.sebsrvv.app.modules.meals.web.dto;
 
 import com.sebsrvv.app.modules.meals.domain.MealType;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.util.List;
 
 public class MealRequest {
 
+    @NotNull
     private MealType mealType;
 
     @NotBlank(message = "description no puede estar vacío")
     private String description;
 
-    @Min(value = 0, message = "calories debe ser >= 0")
     private Double calories;
-
     private Double protein_g;
     private Double carbs_g;
     private Double fat_g;
 
-    /**
-     * Fecha opcional (cliente puede enviar loggedAt); si null se usará Instant.now()
-     */
+    // LocalDate expected as "yyyy-MM-dd"
     private LocalDate loggedAt;
 
     private List<String> mealItems;
 
-    // getters / setters
+    public MealRequest() {}
+
     public MealType getMealType() { return mealType; }
     public void setMealType(MealType mealType) { this.mealType = mealType; }
 

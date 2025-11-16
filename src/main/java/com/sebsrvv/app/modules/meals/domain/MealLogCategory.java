@@ -1,13 +1,8 @@
 package com.sebsrvv.app.modules.meals.domain;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.util.Objects;
 
-import java.time.Instant;
-
-@Data
-@NoArgsConstructor
 @Entity
 @Table(name = "meal_log_categories")
 public class MealLogCategory {
@@ -16,14 +11,34 @@ public class MealLogCategory {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "meal_log_id", nullable = false)
-    private MealLog mealLog;
+    @Column(nullable = false, length = 120)
+    private String name;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", nullable = false)
-    private FoodCategory category;
+    @JoinColumn(name = "meal_id")
+    private MealLog meal;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt = Instant.now();
+    public MealLogCategory() {}
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public MealLog getMeal() { return meal; }
+    public void setMeal(MealLog meal) { this.meal = meal; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof MealLogCategory)) return false;
+        MealLogCategory that = (MealLogCategory) o;
+        return Objects.equals(id, that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
 }
