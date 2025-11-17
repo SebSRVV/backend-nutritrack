@@ -1,178 +1,89 @@
 package com.sebsrvv.app.modules.meals.domain;
 
+import jakarta.persistence.*;
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
+@Entity
+@Table(name = "meal_logs") // schema = "public" por defecto
 public class Meal {
 
-    private final UUID id;
-    private final UUID userId;
+    @Id
+    @Column(name = "id", nullable = false)
+    private UUID id;
 
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
+
+    @Column(name = "description", nullable = false)
     private String description;
+
+    @Column(name = "calories", nullable = false)
     private int calories;
+
+    @Column(name = "protein_g")
     private BigDecimal proteinGrams;
+
+    @Column(name = "carbs_g")
     private BigDecimal carbsGrams;
+
+    @Column(name = "fat_g")
     private BigDecimal fatGrams;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "meal_type", nullable = false, columnDefinition = "meal_type")
     private MealType mealType;
+
+    @Column(name = "logged_at", nullable = false)
     private OffsetDateTime loggedAt;
-    private final OffsetDateTime createdAt;
 
-    // relación con food_categories (via meal_log_categories)
-    private final Set<Integer> categoryIds = new HashSet<>();
+    @Column(name = "created_at", nullable = false)
+    private OffsetDateTime createdAt;
 
-    public Meal(UUID id,
-                UUID userId,
-                String description,
-                int calories,
-                BigDecimal proteinGrams,
-                BigDecimal carbsGrams,
-                BigDecimal fatGrams,
-                MealType mealType,
-                OffsetDateTime loggedAt,
-                OffsetDateTime createdAt,
-                Set<Integer> categoryIds) {
+    @ManyToMany
+    @JoinTable(
+            name = "meal_log_categories",
+            joinColumns = @JoinColumn(name = "meal_log_id"),
+            inverseJoinColumns = @JoinColumn(name = "category_id")
+    )
+    private Set<FoodCategory> categories = new HashSet<>();
 
-        Objects.requireNonNull(userId, "userId es obligatorio");
-        Objects.requireNonNull(description, "description es obligatorio");
-        Objects.requireNonNull(mealType, "mealType es obligatorio");
+    // ---------- getters/setters ------------
 
-        if (description.isBlank()) {
-            throw new IllegalArgumentException("description no puede ser vacío");
-        }
-        if (calories < 0) {
-            throw new IllegalArgumentException("calories no puede ser negativo");
-        }
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
 
-        this.id = id != null ? id : UUID.randomUUID();
-        this.userId = userId;
-        this.description = description;
-        this.calories = calories;
-        this.proteinGrams = proteinGrams;
-        this.carbsGrams = carbsGrams;
-        this.fatGrams = fatGrams;
-        this.mealType = mealType;
-        this.loggedAt = loggedAt != null ? loggedAt : OffsetDateTime.now();
-        this.createdAt = createdAt != null ? createdAt : OffsetDateTime.now();
+    public UUID getUserId() { return userId; }
+    public void setUserId(UUID userId) { this.userId = userId; }
 
-        if (categoryIds != null) {
-            this.categoryIds.addAll(categoryIds);
-        }
-    }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
-    // Factory para crear nuevos meals
-    public static Meal create(UUID userId,
-                              String description,
-                              int calories,
-                              BigDecimal proteinGrams,
-                              BigDecimal carbsGrams,
-                              BigDecimal fatGrams,
-                              MealType mealType,
-                              OffsetDateTime loggedAt,
-                              Set<Integer> categoryIds) {
+    public int getCalories() { return calories; }
+    public void setCalories(int calories) { this.calories = calories; }
 
-        return new Meal(
-                null,
-                userId,
-                description,
-                calories,
-                proteinGrams,
-                carbsGrams,
-                fatGrams,
-                mealType,
-                loggedAt,
-                null,
-                categoryIds
-        );
-    }
+    public BigDecimal getProteinGrams() { return proteinGrams; }
+    public void setProteinGrams(BigDecimal proteinGrams) { this.proteinGrams = proteinGrams; }
 
-    // --------- comportamiento de dominio ---------
+    public BigDecimal getCarbsGrams() { return carbsGrams; }
+    public void setCarbsGrams(BigDecimal carbsGrams) { this.carbsGrams = carbsGrams; }
 
-    public void update(String description,
-                       Integer calories,
-                       BigDecimal proteinGrams,
-                       BigDecimal carbsGrams,
-                       BigDecimal fatGrams,
-                       MealType mealType,
-                       OffsetDateTime loggedAt,
-                       Set<Integer> newCategoryIds) {
+    public BigDecimal getFatGrams() { return fatGrams; }
+    public void setFatGrams(BigDecimal fatGrams) { this.fatGrams = fatGrams; }
 
-        if (description != null && !description.isBlank()) {
-            this.description = description;
-        }
-        if (calories != null) {
-            if (calories < 0) {
-                throw new IllegalArgumentException("calories no puede ser negativo");
-            }
-            this.calories = calories;
-        }
-        if (proteinGrams != null) {
-            this.proteinGrams = proteinGrams;
-        }
-        if (carbsGrams != null) {
-            this.carbsGrams = carbsGrams;
-        }
-        if (fatGrams != null) {
-            this.fatGrams = fatGrams;
-        }
-        if (mealType != null) {
-            this.mealType = mealType;
-        }
-        if (loggedAt != null) {
-            this.loggedAt = loggedAt;
-        }
-        if (newCategoryIds != null) {
-            this.categoryIds.clear();
-            this.categoryIds.addAll(newCategoryIds);
-        }
-    }
+    public MealType getMealType() { return mealType; }
+    public void setMealType(MealType mealType) { this.mealType = mealType; }
 
-    // --------- getters -------------
+    public OffsetDateTime getLoggedAt() { return loggedAt; }
+    public void setLoggedAt(OffsetDateTime loggedAt) { this.loggedAt = loggedAt; }
 
-    public UUID getId() {
-        return id;
-    }
+    public OffsetDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
 
-    public UUID getUserId() {
-        return userId;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public int getCalories() {
-        return calories;
-    }
-
-    public BigDecimal getProteinGrams() {
-        return proteinGrams;
-    }
-
-    public BigDecimal getCarbsGrams() {
-        return carbsGrams;
-    }
-
-    public BigDecimal getFatGrams() {
-        return fatGrams;
-    }
-
-    public MealType getMealType() {
-        return mealType;
-    }
-
-    public OffsetDateTime getLoggedAt() {
-        return loggedAt;
-    }
-
-    public OffsetDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public Set<Integer> getCategoryIds() {
-        return Set.copyOf(categoryIds);
-    }
+    public Set<FoodCategory> getCategories() { return categories; }
+    public void setCategories(Set<FoodCategory> categories) { this.categories = categories; }
 }
