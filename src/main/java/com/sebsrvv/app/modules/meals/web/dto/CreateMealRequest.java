@@ -5,8 +5,7 @@ import java.time.OffsetDateTime;
 import java.util.Set;
 import java.util.UUID;
 
-public record MealResponse(
-        UUID id,
+public record CreateMealRequest(
         UUID userId,
         String description,
         int calories,
@@ -15,6 +14,5 @@ public record MealResponse(
         BigDecimal fatGrams,
         String mealType,
         OffsetDateTime loggedAt,
-        OffsetDateTime createdAt,
         Set<Integer> categoryIds
 ) {}
