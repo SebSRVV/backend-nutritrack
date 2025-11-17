@@ -10,6 +10,7 @@ import com.sebsrvv.app.modules.practice.web.dto.PracticesRequest;
 import com.sebsrvv.app.modules.practice.web.dto.PracticesResponse;
 import org.hibernate.annotations.SoftDelete;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,7 @@ public class PracticesService {
     private PracticesRepository practicesRepository;
 
     //PracticesService practicesService;
+
     @Transactional
     public PracticesDTO createPractice(PracticesDTO practicesRequest, UUID id) {
         Practices nuevoPractice = new Practices();
@@ -34,7 +36,9 @@ public class PracticesService {
         if ("quantity".equals(kind) || "boolean".equals(kind)) {
             nuevoPractice.setValueKind(practicesRequest.getValue_kind());
         } else {
+
             throw new PracticeValueKindException();
+            //throw new PracticeValueKindException();
         }
         nuevoPractice.setTargetValue(practicesRequest.getTarget_value());
         nuevoPractice.setTargetUnit(practicesRequest.getTarget_unit());
@@ -83,16 +87,6 @@ public class PracticesService {
         return practicesRequest;
     }
 
-
-    //@Transactional
-    //public list<PracticesResponse>
-
-    //1. Seguir con las APIs
-    //2. Crear los exceptions
-    //3. Aplicar Softs
-    //Aplicar Soft
-    //@SoftDelete
-    //@SoftDelete
     @Transactional
     public Boolean deletePractice(String metodo, UUID id) {
         Practices practica =  practicesRepository.findById(id).orElseThrow(() -> new NoPracticeException(id));
@@ -106,17 +100,4 @@ public class PracticesService {
             throw new NoValidDeleteException();
         }
     }
-
-    /*public PracticesResponse MappearRespuesta(Practices practice){
-        PracticesResponse Respuesta = new PracticesResponse();
-        Respuesta.setName(practice.getName());
-        Respuesta.setDescription(practice.getDescription());
-        Respuesta.setIcon(practice.getIcon());
-        Respuesta.setValue_kind(practice.getValueKind());
-        Respuesta.setTarget_value(practice.getTargetValue());
-        Respuesta.setPractice_operator(practice.getPracticeOperator());
-        Respuesta.setDays_per_week(practice.getDaysPerWeek());
-        Respuesta.setIs_active(practice.getIsActive());
-        return Respuesta;
-    }*/
 }
