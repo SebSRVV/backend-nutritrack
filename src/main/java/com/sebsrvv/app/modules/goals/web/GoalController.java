@@ -4,6 +4,7 @@ package com.sebsrvv.app.modules.goals.web;
 import com.sebsrvv.app.modules.goals.application.GoalService;
 import com.sebsrvv.app.modules.goals.web.dto.GoalRequest;
 import com.sebsrvv.app.modules.goals.web.dto.GoalResponse;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,7 +28,7 @@ public class GoalController {
     // POST /api/goals?userId=...
     @PostMapping
     public ResponseEntity<GoalResponse> create(@RequestParam UUID userId,
-                                               @RequestBody GoalRequest body) {
+                                               @Valid @RequestBody GoalRequest body) { // <-- Validación Activada
         GoalResponse out = goalService.createGoal(body, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(out);
     }
@@ -36,14 +37,14 @@ public class GoalController {
     @PutMapping("/{goalId}")
     public ResponseEntity<GoalResponse> put(@PathVariable UUID goalId,
                                             @RequestParam UUID userId,
-                                            @RequestBody GoalRequest body) {
+                                            @Valid @RequestBody GoalRequest body) { // <-- Validación Activada
         return ResponseEntity.ok(goalService.putOrPatchGoal(goalId, body, userId));
     }
 
     @PatchMapping("/{goalId}")
     public ResponseEntity<GoalResponse> patch(@PathVariable UUID goalId,
                                               @RequestParam UUID userId,
-                                              @RequestBody GoalRequest body) {
+                                              @Valid @RequestBody GoalRequest body) { // <-- Validación Activada
         return ResponseEntity.ok(goalService.putOrPatchGoal(goalId, body, userId));
     }
 
@@ -53,7 +54,7 @@ public class GoalController {
                                     @RequestParam UUID userId,
                                     @RequestParam(required = false, defaultValue = "soft") String mode) {
         if ("soft".equalsIgnoreCase(mode)) {
-            goalService.softDelete(goalId, userId);           // RN-12
+            goalService.softDelete(goalId, userId);
             return ResponseEntity.ok().body("{\"status\":200}");
         } else {
             goalService.hardDelete(goalId, userId);

@@ -14,10 +14,9 @@ import java.util.UUID;
 public class Goal {
 
     @Id
-    @GeneratedValue(generator = "UUID")
-    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @GeneratedValue(strategy = GenerationType.UUID) // <-- ¡Solo esto!
     @Column(name = "id", nullable = false, updatable = false, unique = true)
-    private UUID id; // lo genera Postgres (DEFAULT gen_random_uuid()), dejamos null al insertar
+    private UUID id;
 
     @Column(name = "user_id", nullable = false, updatable = false)
     private UUID userId;
