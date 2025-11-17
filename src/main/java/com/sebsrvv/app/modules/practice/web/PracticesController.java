@@ -4,8 +4,7 @@ import com.sebsrvv.app.modules.auth.domain.ProfileRepository;
 import com.sebsrvv.app.modules.practice.application.PracticesEntriesService;
 import com.sebsrvv.app.modules.practice.application.PracticesService;
 import com.sebsrvv.app.modules.practice.application.PracticesWeekStatsService;
-import com.sebsrvv.app.modules.practice.domain.Practices;
-import com.sebsrvv.app.modules.practice.domain.PracticesRepository;
+import com.sebsrvv.app.modules.practice.domain.*;
 import com.sebsrvv.app.modules.practice.exception.NoPracticeException;
 import com.sebsrvv.app.modules.practice.exception.NoUserException;
 import com.sebsrvv.app.modules.practice.exception.SuccessResponse;
@@ -15,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -31,6 +31,19 @@ public class PracticesController {
     private PracticesWeekStatsService practicesWeekStatsService;
     @Autowired
     private ProfileRepository profileRepository;
+    @Autowired
+    private PracticesEntriesRepository practicesEntriesRepository;
+    @Autowired
+    private PracticesWeekStatsRepository practicesWeekStatsRepository;
+
+
+    @GetMapping("/{userId}")
+    public List<Practices> getPractices(@PathVariable UUID userId) {
+        if (profileRepository.findById(userId).isEmpty()) {
+            throw new NoUserException(userId);
+        }
+        return practicesRepository.findByUserId(userId);
+    }
 
     @PostMapping("/crear/{id}")
     public ResponseEntity<SuccessResponse> crearPractica(@RequestBody PracticesDTO cuerpo, @PathVariable UUID id) {
@@ -78,6 +91,12 @@ public class PracticesController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("entrada/{practiceId}")
+    public List<PracticesEntries> ObtenerEntradas(@PathVariable UUID practiceId) {
+        practicesRepository.findById(practiceId)
+                .orElseThrow(() -> new NoPracticeException(practiceId));
+        return practicesEntriesRepository.findByPracticeId(practiceId);
+    }
     @PostMapping("/crearentrada/{practiceId}")
     public ResponseEntity<SuccessResponse> crearEntrada(@RequestBody PracticesEntriesDTO cuerpo, @PathVariable UUID practiceId) {
         Practices evaluar = practicesRepository.findById(practiceId)
@@ -118,6 +137,12 @@ public class PracticesController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/week/{practiceId}")
+    public List<PracticesWeekStats> getWeekStats(@PathVariable UUID practiceId) {
+        practicesRepository.findById(practiceId)
+                .orElseThrow(() -> new NoPracticeException(practiceId));
+        return practicesWeekStatsRepository.findByPracticeId(practiceId);
+    }
     @PostMapping("/crearweek/{practiceId}")
     public ResponseEntity<SuccessResponse> crearWeek(@RequestBody PracticesWeekStatsRequest cuerpo, @PathVariable UUID practiceId) {
         practicesWeekStatsService.create(cuerpo, practiceId);

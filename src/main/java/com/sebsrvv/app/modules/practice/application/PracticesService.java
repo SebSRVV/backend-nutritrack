@@ -22,6 +22,7 @@ public class PracticesService {
     private PracticesRepository practicesRepository;
 
     //PracticesService practicesService;
+
     @Transactional
     public PracticesDTO createPractice(PracticesDTO practicesRequest, UUID id) {
         Practices nuevoPractice = new Practices();
