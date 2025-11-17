@@ -1,18 +1,17 @@
 package com.sebsrvv.app.modules.meals.domain;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
-import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
-@Repository
-public interface MealRepository extends JpaRepository<MealLog, Long> {
+public interface MealRepository {
 
-    // userId is String (UUID)
-    List<MealLog> findByUserId(String userId);
+    Meal save(Meal meal);
 
-    List<MealLog> findByUserIdAndLoggedAtBetweenOrderByLoggedAtAsc(String userId, Instant start, Instant end);
+    Optional<Meal> findByIdAndUserId(UUID id, UUID userId);
 
-    List<MealLog> findByUserIdAndLoggedAt(String userId, Instant loggedAt);
+    List<Meal> findByUserIdAndDateRange(UUID userId, LocalDate from, LocalDate to);
+
+    void deleteByIdAndUserId(UUID id, UUID userId);
 }

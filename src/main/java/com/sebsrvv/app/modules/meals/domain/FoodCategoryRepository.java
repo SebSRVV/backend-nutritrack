@@ -1,8 +1,9 @@
 package com.sebsrvv.app.modules.meals.domain;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Set;
 
-@Repository
-public interface FoodCategoryRepository extends JpaRepository<FoodCategory, Long> {
+public interface FoodCategoryRepository {
+
+    List<FoodCategory> findAllById(Set<Integer> ids);
 }
