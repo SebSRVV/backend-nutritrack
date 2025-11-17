@@ -1,20 +1,20 @@
 package com.sebsrvv.app.modules.meals.web;
 
 import com.sebsrvv.app.modules.meals.application.MealService;
-import com.sebsrvv.app.modules.meals.web.dto.MealRequest;
+import com.sebsrvv.app.modules.meals.web.dto.CreateMealRequest;
 import com.sebsrvv.app.modules.meals.web.dto.MealResponse;
-import jakarta.validation.Valid;
+import com.sebsrvv.app.modules.meals.web.dto.UpdateMealRequest;
+import com.sebsrvv.app.modules.meals.domain.Meal;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.format.annotation.DateTimeFormat;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
-@RequestMapping("/api")
-@CrossOrigin(origins = "*")
+@RequestMapping("/api/meals")
 public class MealController {
 
     private final MealService mealService;
@@ -23,66 +23,88 @@ public class MealController {
         this.mealService = mealService;
     }
 
-    // Crear meal usando el userId del token (Authorization)
-    @PostMapping("/meals")
-    public ResponseEntity<MealResponse> createMealAuth(@AuthenticationPrincipal Jwt jwt,
-                                                       @Valid @RequestBody MealRequest request) {
-        String userId = jwt.getSubject();
-        MealResponse created = mealService.createMeal(userId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public MealResponse create(@RequestBody CreateMealRequest request) {
+        var command = new MealService.CreateMealCommand(
+                request.userId(),
+                request.description(),
+                request.calories(),
+                request.proteinGrams(),
+                request.carbsGrams(),
+                request.fatGrams(),
+                request.mealType(),
+                request.loggedAt(),
+                request.categoryIds()
+        );
+
+        Meal meal = mealService.createMeal(command);
+        return toResponse(meal);
     }
 
-    // Crear meal para userId en la URL (UUID). Solo si token.sub == userId (seguridad mínima)
-    @PostMapping("/users/{userId}/meals")
-    public ResponseEntity<MealResponse> createMealForUser(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable String userId,
-            @Valid @RequestBody MealRequest request) {
+    @PutMapping("/{mealId}")
+    public MealResponse update(@PathVariable UUID mealId,
+                               @RequestParam UUID userId,
+                               @RequestBody UpdateMealRequest request) {
 
-        String tokenSub = jwt != null ? jwt.getSubject() : null;
-        if (tokenSub == null || !tokenSub.equals(userId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        var command = new MealService.UpdateMealCommand(
+                mealId,
+                userId,
+                request.description(),
+                request.calories(),
+                request.proteinGrams(),
+                request.carbsGrams(),
+                request.fatGrams(),
+                request.mealType(),
+                request.loggedAt(),
+                request.categoryIds()
+        );
 
-        MealResponse created = mealService.createMeal(userId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        Meal meal = mealService.updateMeal(command);
+        return toResponse(meal);
     }
 
-    // Listar meals del usuario por userId en URL (UUID)
-    @GetMapping("/users/{userId}/meals")
-    public ResponseEntity<List<MealResponse>> getMealsForUser(@AuthenticationPrincipal Jwt jwt,
-                                                              @PathVariable String userId) {
-        String tokenSub = jwt != null ? jwt.getSubject() : null;
-        if (tokenSub == null || !tokenSub.equals(userId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-        List<MealResponse> meals = mealService.getAllMeals(userId);
-        return ResponseEntity.ok(meals);
-    }
-
-    // Obtener, actualizar y eliminar por mealId (usa token.sub para comparar dueño)
-    @GetMapping("/meals/{mealId}")
-    public ResponseEntity<MealResponse> getMeal(@AuthenticationPrincipal Jwt jwt,
-                                                @PathVariable Long mealId) {
-        String userId = jwt.getSubject();
-        MealResponse res = mealService.getMeal(mealId, userId);
-        return ResponseEntity.ok(res);
-    }
-
-    @PutMapping("/meals/{mealId}")
-    public ResponseEntity<MealResponse> updateMeal(@AuthenticationPrincipal Jwt jwt,
-                                                   @PathVariable Long mealId,
-                                                   @Valid @RequestBody MealRequest request) {
-        String userId = jwt.getSubject();
-        MealResponse updated = mealService.updateMeal(mealId, userId, request);
-        return ResponseEntity.ok(updated);
-    }
-
-    @DeleteMapping("/meals/{mealId}")
-    public ResponseEntity<Void> deleteMeal(@AuthenticationPrincipal Jwt jwt,
-                                           @PathVariable Long mealId) {
-        String userId = jwt.getSubject();
+    @DeleteMapping("/{mealId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable UUID mealId,
+                       @RequestParam UUID userId) {
         mealService.deleteMeal(mealId, userId);
-        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{mealId}")
+    public MealResponse getOne(@PathVariable UUID mealId,
+                               @RequestParam UUID userId) {
+        Meal meal = mealService.getMeal(mealId, userId);
+        return toResponse(meal);
+    }
+
+    @GetMapping
+    public List<MealResponse> getByDateRange(
+            @RequestParam UUID userId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return mealService.getMeals(userId, from, to).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    // -------- mapper simple dominio -> response --------
+
+    private MealResponse toResponse(Meal meal) {
+        return new MealResponse(
+                meal.getId(),
+                meal.getUserId(),
+                meal.getDescription(),
+                meal.getCalories(),
+                meal.getProteinGrams(),
+                meal.getCarbsGrams(),
+                meal.getFatGrams(),
+                meal.getMealType().name(),
+                meal.getLoggedAt(),
+                meal.getCreatedAt(),
+                meal.getCategoryIds()
+        );
     }
 }
+
