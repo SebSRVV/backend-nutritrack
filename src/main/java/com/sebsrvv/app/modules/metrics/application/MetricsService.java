@@ -32,25 +32,25 @@ public class MetricsService {
 
         // --- validar/parsear dob ---
         if (dob == null || dob.isBlank()) {
-            throw new IllegalArgumentException("dob es requerido (formato yyyy-MM-dd).");
+            throw new IllegalArgumentException("Ingresa una fecha de nacimiento (formato yyyy-MM-dd).");
         }
 
         final LocalDate birth;
         try {
             birth = LocalDate.parse(dob); // ISO yyyy-MM-dd
         } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException("dob inválido. Usa formato yyyy-MM-dd.");
+            throw new IllegalArgumentException("El formato de la fecha de nacimiento es invalido. Usa formato yyyy-MM-dd.");
         }
 
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
 
         if (birth.isAfter(today)) {
-            throw new IllegalArgumentException("dob no puede ser una fecha futura.");
+            throw new IllegalArgumentException("Cambia la fecha de nacimiento, no puede ser una fecha futura.");
         }
 
         int age = Period.between(birth, today).getYears();
         if (age < 0 || age > MAX_AGE_YEARS) {
-            throw new IllegalArgumentException("edad inválida (0.." + MAX_AGE_YEARS + ").");
+            throw new IllegalArgumentException("La edad ingresada no es validad, solo esta permitido de 0 a " + MAX_AGE_YEARS + ").");
         }
 
         // --- BMI ---
