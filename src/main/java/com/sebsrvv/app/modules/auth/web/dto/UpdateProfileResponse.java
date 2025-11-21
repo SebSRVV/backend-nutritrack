@@ -9,5 +9,8 @@ public record UpdateProfileResponse(
         String activity_level,
         String diet_type,
         java.math.BigDecimal bmi,
+        Integer age,
+        Integer days_to_birthday,
+        Integer recommended_kcal,
         String updated_at
 ) {}

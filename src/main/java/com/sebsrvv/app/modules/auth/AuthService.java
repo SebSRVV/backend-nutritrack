@@ -31,6 +31,60 @@ public class AuthService {
         this.supabase = supabase;
     }
 
+    // ---- Helpers de cálculo de perfil ----
+    private Integer computeAge(java.time.LocalDate dob) {
+        if (dob == null) return null;
+        java.time.LocalDate today = java.time.LocalDate.now();
+        int age = today.getYear() - dob.getYear();
+        if (today.getDayOfYear() < dob.getDayOfYear()) age--;
+        return Math.max(age, 0);
+    }
+
+    private Integer computeDaysToBirthday(java.time.LocalDate dob) {
+        if (dob == null) return null;
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDate next = dob.withYear(today.getYear());
+        if (!next.isAfter(today)) next = next.plusYears(1);
+        return (int) java.time.temporal.ChronoUnit.DAYS.between(today, next);
+    }
+
+    /**
+     * Calcula recomendación de kcal con Mifflin–St Jeor + factor de actividad y ajuste de dieta.
+     * sex: "male" o "female". height_cm en cm, weight_kg en kg.
+     */
+    private Integer computeRecommendedKcal(UserProfile p) {
+        if (p == null) return null;
+        Short h = p.getHeightCm();
+        BigDecimal w = p.getWeightKg();
+        java.time.LocalDate dob = p.getDob();
+        if (h == null || h == 0 || w == null || dob == null) return null;
+        Integer age = computeAge(dob);
+        if (age == null) return null;
+
+        String sex = Optional.ofNullable(p.getSex()).orElse("").toLowerCase();
+        double height = h.doubleValue();
+        double weight = w.doubleValue();
+        double bmr = sex.equals("male")
+                ? 10*weight + 6.25*height - 5*age + 5
+                : 10*weight + 6.25*height - 5*age - 161;
+
+        String activity = Optional.ofNullable(p.getActivityLevel()).orElse("moderate");
+        double factor = switch (activity) {
+            case "sedentary" -> 1.2;
+            case "very_active" -> 1.725;
+            default -> 1.55; // moderate
+        };
+
+        String diet = Optional.ofNullable(p.getDietType()).orElse("caloric_deficit");
+        double adj = switch (diet) {
+            case "surplus" -> 1.10;
+            case "caloric_deficit" -> 0.85;
+            default -> 1.00; // maintenance
+        };
+
+        long rec = Math.round(bmr * factor * adj);
+        return rec <= 0 ? null : (int) rec;
+    }
     @Transactional
     public TokenResponse register(RegisterRequest r) {
         Map<String, Object> meta = new HashMap<>();
@@ -64,10 +118,73 @@ public class AuthService {
 
     @Transactional
     public Map<String, Object> me(Jwt jwt) {
+        return getProfile(jwt);
+    }
+
+    @Transactional
+    public Map<String, Object> getProfile(Jwt jwt) {
         UUID userId = UUID.fromString(jwt.getSubject());
         String email = jwt.getClaimAsString("email");
-        ensureProfile(userId, email, null);
-        return Map.of("id", userId.toString(), "email", email);
+        UserProfile p = ensureProfile(userId, email, null);
+
+        // Hidratar datos faltantes desde los metadatos del JWT (Supabase user_metadata)
+        try {
+            Object raw = jwt.getClaims().get("user_metadata");
+            if (raw instanceof java.util.Map<?,?> meta) {
+                Object v;
+                if (p.getUsername() == null && (v = meta.get("username")) != null) {
+                    String u = String.valueOf(v).trim().toLowerCase(); if (!u.isBlank()) p.setUsername(u);
+                }
+                if (p.getSex() == null && (v = meta.get("sex")) != null) {
+                    p.setSex(String.valueOf(v).trim().toLowerCase());
+                }
+                if (p.getHeightCm() == null && ((v = meta.get("height_cm")) != null || (v = meta.get("heightCm")) != null)) {
+                    Short h = null;
+                    if (v instanceof Number n) h = n.shortValue();
+                    else { try { h = Short.valueOf(String.valueOf(v)); } catch (Exception ignored) {} }
+                    if (h != null && h > 0) p.setHeightCm(h);
+                }
+                if (p.getWeightKg() == null && ((v = meta.get("weight_kg")) != null || (v = meta.get("weightKg")) != null)) {
+                    java.math.BigDecimal w = null;
+                    if (v instanceof Number n) w = new java.math.BigDecimal(n.toString());
+                    else { try { w = new java.math.BigDecimal(String.valueOf(v)); } catch (Exception ignored) {} }
+                    if (w != null && w.signum() > 0) p.setWeightKg(w);
+                }
+                if (p.getDob() == null && (v = meta.get("dob")) != null) {
+                    try { p.setDob(java.time.LocalDate.parse(String.valueOf(v))); } catch (Exception ignored) {}
+                }
+                if (p.getActivityLevel() == null && ((v = meta.get("activity_level")) != null || (v = meta.get("activityLevel")) != null)) {
+                    p.setActivityLevel(String.valueOf(v).toLowerCase());
+                }
+                if (p.getDietType() == null && ((v = meta.get("diet_type")) != null || (v = meta.get("dietType")) != null)) {
+                    p.setDietType(String.valueOf(v).toLowerCase());
+                }
+                // Recalcular BMI si procede
+                p.setBmi(computeBmi(p.getHeightCm(), p.getWeightKg()));
+                p.setUpdatedAt(Instant.now());
+                profiles.save(p);
+            }
+        } catch (Exception ignored) {}
+
+        Integer age = computeAge(p.getDob());
+        Integer daysToBirthday = computeDaysToBirthday(p.getDob());
+        Integer recommended = computeRecommendedKcal(p);
+
+        Map<String, Object> m = new HashMap<>();
+        m.put("id", userId.toString());
+        m.put("email", email);
+        m.put("username", p.getUsername());
+        m.put("sex", p.getSex());
+        m.put("height_cm", p.getHeightCm());
+        m.put("weight_kg", p.getWeightKg());
+        m.put("dob", p.getDob());
+        m.put("activity_level", Optional.ofNullable(p.getActivityLevel()).orElse("moderate"));
+        m.put("diet_type", Optional.ofNullable(p.getDietType()).orElse("caloric_deficit"));
+        m.put("bmi", p.getBmi());
+        m.put("age", age);
+        m.put("days_to_birthday", daysToBirthday);
+        m.put("recommended_kcal", recommended);
+        return m;
     }
 
     @Transactional
@@ -85,6 +202,11 @@ public class AuthService {
         p.setBmi(computeBmi(p.getHeightCm(), p.getWeightKg()));
         p.setUpdatedAt(Instant.now());
         profiles.save(p);
+
+        Integer age = computeAge(p.getDob());
+        Integer daysToBirthday = computeDaysToBirthday(p.getDob());
+        Integer recommended = computeRecommendedKcal(p);
+
         return new UpdateProfileResponse(
                 userId.toString(),
                 p.getUsername(),
@@ -94,6 +216,9 @@ public class AuthService {
                 p.getActivityLevel(),
                 p.getDietType(),
                 p.getBmi(),
+                age,
+                daysToBirthday,
+                recommended,
                 p.getUpdatedAt() == null ? null : p.getUpdatedAt().toString()
         );
     }

@@ -36,6 +36,11 @@ public class AuthController {
         return service.me(jwt);
     }
 
+    @GetMapping("/profile")
+    public Map<String, Object> profile(@AuthenticationPrincipal Jwt jwt) {
+        return service.getProfile(jwt);
+    }
+
 
     @PatchMapping("/profile")
     public UpdateProfileResponse update(@AuthenticationPrincipal Jwt jwt,
